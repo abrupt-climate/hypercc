@@ -27,10 +27,11 @@ setup(
         'Development Status :: 4 - Beta',
         'Programming Language :: Python :: 3.6'],
     install_requires=[
-        'hyper_canny', 'noodles[numpy]', 'matplotlib', 'scipy', 'numpy'],
+        'hyper_canny', 'noodles[numpy]', 'matplotlib', 'scipy', 'numpy',
+        'netCDF4', 'jupyter', 'cartopy', 'pint'],
     extras_require={
         'develop': [
-            'pytest', 'pytest', 'coverage', 'pep8', 'tox',
+            'pytest', 'coverage', 'pep8', 'tox', 'flake8',
             'sphinx', 'sphinx_rtd_theme', 'nbsphinx'],
     },
 )
