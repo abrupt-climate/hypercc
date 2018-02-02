@@ -13,7 +13,7 @@ with (here / 'README.rst').open(encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
-    name='HyperCanny Climate module',
+    name='hypercc',
     version='0.1.0',
     description='Runs the Canny edge detector on climate data.',
     long_description=long_description,
@@ -27,8 +27,8 @@ setup(
         'Development Status :: 4 - Beta',
         'Programming Language :: Python :: 3.6'],
     install_requires=[
-        'hyper_canny', 'noodles[numpy]', 'matplotlib', 'scipy', 'numpy',
-        'netCDF4', 'jupyter', 'cartopy', 'pint'],
+        'HyperCanny', 'noodles[numpy]', 'matplotlib', 'scipy', 'numpy',
+        'netCDF4', 'jupyter', 'cartopy', 'pint', 'pyparsing'],
     extras_require={
         'develop': [
             'pytest', 'coverage', 'pep8', 'tox', 'flake8',

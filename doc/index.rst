@@ -10,7 +10,8 @@ Welcome to HyperCanny Climate module's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+.. automodule:: hypercc
+   :members:
 
 Indices and tables
 ==================

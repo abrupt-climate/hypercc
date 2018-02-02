@@ -62,7 +62,7 @@ instance/
 .scrapy
 
 # Sphinx documentation
-docs/_build/
+doc/_build/
 
 # PyBuilder
 target/
@@ -102,3 +102,9 @@ ENV/
 
 # vs code
 .vscode
+
+# project specific
+data
+./*.db
+./*.hdf5
+
