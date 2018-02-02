@@ -5,6 +5,7 @@ Implements the HyperCanny workflow for climate data.
 import noodles
 from .data.data_set import DataSet
 from .units import unit, month_index
+from .filters import gaussian_filter
 from .calibration import calibrate_sobel
 
 
@@ -54,8 +55,8 @@ def compute_calibration(config, data_set):
     data = data_set.data[month::12]
     box = data_set.box[month::12]
 
-    smooth_data = box.gaussian_filter(
-        data, [sigma_t, sigma_x, sigma_x])
+    smooth_data = gaussian_filter(
+        box, data, [sigma_t, sigma_x, sigma_x])
     calibration = calibrate_sobel(
         box, smooth_data, sobel_delta_t, sobel_delta_x)
 

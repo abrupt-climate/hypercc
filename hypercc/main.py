@@ -80,7 +80,7 @@ if __name__ == "__main__":
     report_parser.add_argument(
         "--sobel-scale", help="scaling of time/space in magnitude of Sobel"
         " operator, should have dimensionality of velocity. (default: "
-        "10 km/year)", nargs=2, default=['10', 'km/year'], dest='sobel-scale')
+        "10 km/year)", nargs=2, default=['10', 'km/year'], dest='sobel_scale')
     args = parser.parse_args()
 
     print(args)

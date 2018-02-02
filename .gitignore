@@ -105,6 +105,6 @@ ENV/
 
 # project specific
 data
-./*.db
-./*.hdf5
-
+*.db
+*.hdf5
+cache.lock
