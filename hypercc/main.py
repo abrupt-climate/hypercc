@@ -19,9 +19,16 @@ def registry():
 
 
 def print_nlesc_logo():
-    print("\033[47;30m Netherlands\033[48;2;0;174;239;37m▌"
+    print("\n     \033[47;30m Netherlands\033[48;2;0;174;239;37m▌"
           "\033[38;2;255;255;255me\u20d2Science\u20d2\033[37m▐"
-          "\033[47;30mcenter \033[m HyperCanny Climate module")
+          "\033[47;30mcenter \033[m"
+          "          +===========================+\n"
+          "                  and               "
+          "        | HyperCanny Climate module |\n"
+          " \033[47;30m \033[38;2;42;128;41;4m⊓ \033[24m"
+          "\033[38;2;0;74;109m Wageningen"
+          "\033[38;2;42;128;41m University & Research \033[m  "
+          "    +---------------------------+\n")
 
 
 if __name__ == "__main__":
