@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./bin/hypercc --data-folder data report --model MPI-ESM-LR --variable tas --scenario rcp85
+./bin/hypercc --data-folder ../testcases report --model MIROC-ESM --variable test1 --scenario rcp85

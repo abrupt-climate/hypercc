@@ -1,39 +1,36 @@
-import argparse
-import logging
-import multiprocessing
-
-from noodles.run.threading.sqlite3 import run_parallel as run
-from noodles import serial
-from noodles.serial.numpy import arrays_to_hdf5
-
-from .workflow import generate_report
-from .units import MONTHS
-
-N_CORES = multiprocessing.cpu_count()
-
-
-def registry():
-    return serial.pickle() \
-        + serial.base() \
-        + arrays_to_hdf5('hypercc-cache.hdf5')
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def print_nlesc_logo():
     print("\n     \033[47;30m Netherlands\033[48;2;0;174;239;37m▌"
           "\033[38;2;255;255;255me\u20d2Science\u20d2\033[37m▐"
           "\033[47;30mcenter \033[m"
-          "          +===========================+\n"
+          "          ╒═══════════════════════════╕\n"
           "                  and               "
-          "        | HyperCanny Climate module |\n"
+          "        │ HyperCanny Climate module │\n"
           " \033[47;30m \033[38;2;42;128;41;4m⊓ \033[24m"
           "\033[38;2;0;74;109m Wageningen"
           "\033[38;2;42;128;41m University & Research \033[m  "
-          "    +---------------------------+\n")
+          "    ╰───────────────────────────╯\n")
 
 
 if __name__ == "__main__":
+    import argparse
+    import logging
+
+    from noodles.run.threading.sqlite3 import run_parallel as run
+
+    from .workflow import generate_report
+    from .units import MONTHS
+    from .serialisers import registry
+
+    import multiprocessing
+    N_CORES = multiprocessing.cpu_count()
+
     print_nlesc_logo()
-    logging.getLogger('noodles').setLevel(logging.INFO)
+    logging.getLogger('root').setLevel(logging.INFO)
+    logging.info("This message should show.")
 
     parser = argparse.ArgumentParser(
         prog='hypercc',

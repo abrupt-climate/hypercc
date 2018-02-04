@@ -32,6 +32,21 @@ class Box:
         self.time_units = time_units
         self.time_start = time_start
 
+    def __serialize__(self, pack):
+        return pack({
+            'time': self.time,
+            'lat': self.lat,
+            'lon': self.lon,
+            'lat_bnds': self.lat_bnds,
+            'lon_bnds': self.lon_bnds,
+            'time_units': self.time_units,
+            'time_start': self.time_start
+        })
+
+    @classmethod
+    def __construct__(cls, data):
+        return Box(**data)
+
     @staticmethod
     def from_netcdf(nc):
         """Obtain latitude, longitude and time axes from a given
