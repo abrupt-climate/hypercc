@@ -1,5 +1,15 @@
 import warnings
+import sys
+from pathlib import Path
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
+
+
+def weave_report(config):
+    path = Path(__file__).parent / 'templates' / 'report.mdw'
+    template = path.open().read()
+    text = template.format(**vars(config))
+    print(text)
 
 
 def print_nlesc_logo():
@@ -12,12 +22,16 @@ def print_nlesc_logo():
           " \033[47;30m \033[38;2;42;128;41;4m⊓ \033[24m"
           "\033[38;2;0;74;109m Wageningen"
           "\033[38;2;42;128;41m University & Research \033[m  "
-          "    ╰───────────────────────────╯\n")
+          "    ╰───────────────────────────╯\n", file=sys.stderr)
 
 
 if __name__ == "__main__":
     import argparse
     import logging
+
+    # disable interactive plotting
+    import matplotlib
+    matplotlib.use('SVG')
 
     from noodles.run.threading.sqlite3 import run_parallel as run
 
@@ -39,12 +53,13 @@ if __name__ == "__main__":
         "--data-folder", help="path to search for NetCDF files "
         "(default: %(default)s)",
         default='.', dest='data_folder')
-
     subparser = parser.add_subparsers(
         help="command to run", dest='command')
+
     report_parser = subparser.add_parser(
         "report", help="generate complete report")
     report_parser.set_defaults(func=generate_report)
+
     report_parser.add_argument(
         "--model", help="model name in CMIP5 naming scheme",
         required=True, dest='model')
@@ -85,12 +100,10 @@ if __name__ == "__main__":
         "--sobel-scale", help="scaling of time/space in magnitude of Sobel"
         " operator, should have dimensionality of velocity. (default: "
         "10 km/year)", nargs=2, default=['10', 'km/year'], dest='sobel_scale')
+
     args = parser.parse_args()
-
-    print(args)
-
-    workflow = args.func(args)
-    result = run(workflow, n_threads=N_CORES, registry=registry,
-                 db_file='hypercc-cache.db')
-
-    print(result)
+    if args.command == 'report':
+        workflow = args.func(args)
+        result = run(workflow, n_threads=N_CORES, registry=registry,
+                     db_file='hypercc-cache.db', always_cache=False)
+        print(result)

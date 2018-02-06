@@ -77,5 +77,5 @@ def plot_signal_histogram(box, signal, **pargs):
                   norm=colors.LogNorm(vmin=0.1, vmax=hist.max()),
                   cmap='Purples')
     ax.plot(box.dates, signal_flat.max(axis=1), '-', c='gray')
-    plt.close()
+    # plt.close()
     return fig

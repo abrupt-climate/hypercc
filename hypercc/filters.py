@@ -52,7 +52,6 @@ def gaussian_filter_3d(box, data, sigma_t, sigma_lat, sigma_lon):
     s_t = (sigma_t / res_t).m_as('')
     s_lat = (sigma_lat / res_lat).m_as('')
     s_lon = (sigma_lon / res_lon).m_as('')
-    print("Sigmas:", s_t, s_lat, s_lon)
 
     outp = np.zeros_like(data)
     for i, lat_rad in enumerate(box.lat_bnds.mean(axis=1) / 180 * np.pi):

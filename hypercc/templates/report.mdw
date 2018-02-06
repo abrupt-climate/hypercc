@@ -1,0 +1,33 @@
+# HyperCanny climate output
+
+<<echo = False>>=
+import numpy as np
+import matplotlib.pyplot as plt
+
+from hypercc.units import unit
+
+model = "{model}"
+scenario = "{scenario}"
+variable = "{variable}"
+realization = "{realization}"
+
+month = "{month}"
+sigma_x = unit("{sigma_x}")
+sigma_t = unit("{sigma_t}")
+sobel_scale = unit("{sobel_scale}")
+@
+
+| Model | Scenario | Variable | Realization |
+| ----- | -------- | -------- | ----------- |
+| <%=model%> | <%=scenario%> | <%=variable%> | <%=realization%> |
+
+| Month | $\sigma_x$ | $\sigma_t$ | sobel scale |
+| ----- | --------- | --------- | ------- |
+| <%=month%> | <%=sigma_x.__format__(spec='~P')%> | <%=sigma_t.__format__(spec='~P')%> | <%=sobel_scale.__format__(spec='~P')%> |
+
+<<fig = True, echo = False>>=
+x = np.linspace(0, 2*np.pi, 100)
+y = np.sin(x)
+plt.plot(x, y)
+plt.show()
+@

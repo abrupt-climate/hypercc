@@ -3,6 +3,7 @@ Handles a series of NetCDF files.
 """
 
 from pathlib import Path
+from copy import copy
 
 import numpy as np
 
@@ -31,13 +32,14 @@ class DataSet(object):
               "_{realization}_??????-??????.{extension}"
 
     def __init__(self, *, path, model: str, variable: str, scenario: str,
-                 realization: str, extension="nc"):
+                 realization: str, extension="nc", selection=slice(None)):
         self.path = Path(path)
         self.model = model
         self.variable = variable
         self.scenario = scenario
         self.realization = realization
         self.extension = extension
+        self.selection = selection
 
         self._box = None
         self.files = None
@@ -51,12 +53,20 @@ class DataSet(object):
             'variable': self.variable,
             'scenario': self.scenario,
             'realization': self.realization,
-            'extension': self.extension
+            'extension': self.extension,
+            'selection': self.selection
         }, files=[str(f.path) for f in self.files])
 
     @classmethod
     def __construct__(cls, data):
         return DataSet(**data)
+
+    def __getitem__(self, selection):
+        result = copy(self)
+        # DataSet.__new__(DataSet)
+        # result.__dict__ = self.__dict__
+        result.selection = selection
+        return result
 
     def check(self):
         """Checks if files exist that match the given pattern. Then loads them
@@ -128,10 +138,11 @@ class DataSet(object):
             dt, t0 = self.files[0].time_units
             self._box = Box(time, lat, lon, lat_bnds, lon_bnds, dt, t0)
 
-        return self._box
+        return self._box[self.selection]
 
     @property
     def data(self):
         """Concatenates data from entire dataset into single array."""
         return np.ma.concatenate(
-            [f.get_masked(self.variable) for f in self.files])
+            [f.get_masked(self.variable)
+             for f in self.files])[self.selection]
