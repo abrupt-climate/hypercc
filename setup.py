@@ -19,7 +19,7 @@ setup(
     long_description=long_description,
     author='Johan Hidding',
     url='https://github.com/abrupt-climate/hypercc',
-    packages=['hypercc'],
+    packages=['hypercc', 'hypercc.data'],
     classifiers=[
         'License :: OSI Approved :: Apache Software License',
         'Intended Audience :: Science/Research',
