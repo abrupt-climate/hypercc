@@ -73,7 +73,8 @@ class SerNamespace(serial.Serialiser):
 
 def registry():
     return serial.Registry(
-        parent=serial.base() + arrays_to_hdf5('hypercc-cache.hdf5'),
+        parent=serial.pickle() + serial.base()
+        + arrays_to_hdf5('hypercc-cache.hdf5'),
         types={
             argparse.Namespace: SerNamespace(),
             datetime.datetime: SerDateTime(),
