@@ -5,13 +5,15 @@ Implements the HyperCanny workflow for climate data.
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
+from scipy import ndimage
 import noodles
 
 from hyper_canny import cp_edge_thinning, cp_double_threshold
 
 from .data.data_set import DataSet
 from .units import unit, month_index
-from .filters import gaussian_filter, sobel_filter
+from .filters import gaussian_filter, sobel_filter, taper_masked_area
 from .calibration import calibrate_sobel
 from .plotting import plot_signal_histogram, plot_plate_carree
 
@@ -51,15 +53,23 @@ def open_pi_control(config):
 
 @noodles.schedule(store=True, call_by_ref=['data_set'])
 def compute_calibration(config, data_set):
-    month = month_index(config.month)
-
     sigma_t, sigma_x = get_sigmas(config)
     sobel_scale = float(config.sobel_scale[0]) * unit(config.sobel_scale[1])
     sobel_delta_t = 1.0 * unit.year
     sobel_delta_x = sobel_delta_t * sobel_scale
 
-    data = data_set.data[month::12]
-    box = data_set.box[month::12]
+    data = data_set.data
+    box = data_set.box
+
+    print("Settings for calibration:")
+    print("    sigma_x: ", sigma_x)
+    print("    sigma_t: ", sigma_t)
+    print("    delta_x: ", sobel_delta_x)
+    print("    delta_t: ", sobel_delta_t)
+
+    if config.taper and isinstance(data, np.ma.core.MaskedArray):
+        print("    tapering on")
+        taper_masked_area(data, [0, 5, 5], 50)
 
     smooth_data = noodles.schedule(gaussian_filter)(
         box, data, [sigma_t, sigma_x, sigma_x])
@@ -89,10 +99,12 @@ def get_sobel_weights(config, calibration):
 
 
 @noodles.schedule(store=True)
-def generate_signal_plot(config, box, sobel_data, title, filename):
-    fig = plot_signal_histogram(box, 1 / sobel_data[3])
+def generate_signal_plot(
+        config, calibration, box, sobel_data, title, filename):
+    lower, upper = get_thresholds(config, calibration)
+    fig = plot_signal_histogram(box, 1 / sobel_data[3], lower, upper)
     fig.suptitle(title)
-    fig.savefig(filename)
+    fig.savefig(filename, bbox_inches='tight')
     return Path(filename)
 
 
@@ -101,15 +113,26 @@ def maximum_suppression(sobel_data):
     return mask.transpose([2, 1, 0])
 
 
+def get_thresholds(config, calibration):
+    gamma = calibration['gamma'][3]
+    mag_quartiles = np.sqrt(
+        (calibration['distance'] * gamma)**2 + calibration['time']**2)
+    return mag_quartiles[3], mag_quartiles[4]
+
+
 def hysteresis_thresholding(config, sobel_data, mask, calibration):
-    lower = calibration['magnitude'][3]
-    upper = calibration['magnitude'][4]
+    lower, upper = get_thresholds(config, calibration)
     new_mask = cp_double_threshold(
         sobel_data.transpose([3, 2, 1, 0]),
         mask.transpose([2, 1, 0]),
         1. / upper,
         1. / lower)
     return new_mask.transpose([2, 1, 0])
+
+
+@noodles.schedule
+def apply_mask_to_edges(edges, mask):
+    return edges * ~mask
 
 
 @noodles.schedule(store=True, call_by_ref=['data_set'])
@@ -120,6 +143,9 @@ def compute_canny_edges(config, data_set, calibration):
     sigma_t, sigma_x = get_sigmas(config)
     weights = get_sobel_weights(config, calibration)
 
+    if config.taper and isinstance(data, np.ma.core.MaskedArray):
+        taper_masked_area(data, [0, 5, 5], 50)
+
     smooth_data = noodles.schedule(gaussian_filter)(
         box, data, [sigma_t, sigma_x, sigma_x])
     sobel_data = noodles.schedule(sobel_filter)(
@@ -128,12 +154,60 @@ def compute_canny_edges(config, data_set, calibration):
         box, smooth_data, physical=False)
     sobel_maxima = noodles.schedule(maximum_suppression)(pixel_sobel)
 
+    if isinstance(data, np.ma.core.MaskedArray):
+        sobel_maxima = apply_mask_to_edges(sobel_maxima, data.mask)
+
     edges = noodles.schedule(hysteresis_thresholding)(
         config, sobel_data, sobel_maxima, calibration)
 
     return noodles.gather_dict(
         sobel=sobel_data,
         edges=edges)
+
+
+@noodles.schedule
+def label_regions(mask, min_size=50):
+    labels, n_features = ndimage.label(
+        mask, ndimage.generate_binary_structure(3, 3))
+    big_enough = [x for x in range(1, n_features+1)
+                  if (labels == x).sum() > min_size]
+    return noodles.gather_dict(
+        regions=np.where(np.isin(labels, big_enough), labels, 0),
+        labels=big_enough)
+
+
+@noodles.schedule(store=True)
+def generate_region_plot(box, mask, title, filename, min_size=50):
+    labels, n_features = ndimage.label(
+        mask, ndimage.generate_binary_structure(3, 3))
+    big_enough = [x for x in range(1, n_features+1)
+                  if (labels == x).sum() > min_size]
+    regions = np.where(np.isin(labels, big_enough), labels, 0)
+    fig = plot_plate_carree(box, regions.max(axis=0))
+    fig.suptitle(title)
+    fig.savefig(filename, bbox_inches='tight')
+    return Path(filename)
+
+
+@noodles.schedule(store=True)
+def generate_year_plot(box, mask, title, filename):
+    years = np.array([d.year for d in box.dates])
+    data = (years[:, None, None] * mask).max(axis=0)
+    fig = plot_plate_carree(
+        box, data, cmap='YlGnBu', vmin=years[0], vmax=years[-1])
+    fig.suptitle(title)
+    fig.savefig(filename, bbox_inches='tight')
+    return Path(filename)
+
+
+@noodles.schedule(store=True)
+def generate_event_count_plot(box, mask, title, filename):
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(box.dates, mask.sum(axis=1).sum(axis=1))
+    fig.suptitle(title)
+    fig.savefig(filename, bbox_inches='tight')
+    return Path(filename)
 
 
 def generate_report(config):
@@ -144,10 +218,19 @@ def generate_report(config):
     canny_edges = compute_canny_edges(config, data_set, calibration)
 
     signal_plot = generate_signal_plot(
-        config, data_set.box, canny_edges['sobel'], "signal", "signal.svg")
+        config, calibration, data_set.box, canny_edges['sobel'], "signal",
+        "signal.png")
+    region_plot = generate_region_plot(
+        data_set.box, canny_edges['edges'], "regions", "regions.png")
+    year_plot = generate_year_plot(
+        data_set.box, canny_edges['edges'], "years", "years.png")
+    event_count_plot = generate_event_count_plot(
+        data_set.box, canny_edges['edges'], "event count", "event_count.png")
 
     return noodles.lift({
         'calibration': calibration,
-        'sobel': noodles.schedule(lambda x: list(x))(canny_edges.keys()),
-        'signal_plot': signal_plot
+        'signal_plot': signal_plot,
+        'region_plot': region_plot,
+        'year_plot': year_plot,
+        'event_count_plot': event_count_plot
     })

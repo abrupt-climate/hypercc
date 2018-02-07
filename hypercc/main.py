@@ -100,10 +100,13 @@ if __name__ == "__main__":
         "--sobel-scale", help="scaling of time/space in magnitude of Sobel"
         " operator, should have dimensionality of velocity. (default: "
         "10 km/year)", nargs=2, default=['10', 'km/year'], dest='sobel_scale')
+    report_parser.add_argument(
+        "--no-taper", help="taper data to handle land/sea mask.",
+        dest='taper', action='store_false')
 
     args = parser.parse_args()
     if args.command == 'report':
         workflow = args.func(args)
         result = run(workflow, n_threads=N_CORES, registry=registry,
                      db_file='hypercc-cache.db', always_cache=False)
-        print(result)
+        print(result['calibration'])

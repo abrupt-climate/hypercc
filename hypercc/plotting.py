@@ -23,7 +23,7 @@ def earth_plot(
         lats = np.concatenate([lats, [90.0]])
         value = np.concatenate([value[:, :], value[0:1, :]], axis=0)
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(20, 10))
     ax = fig.add_subplot(111, projection=projection)
     pcm = ax.pcolormesh(
         lons, lats, value, **pargs,
@@ -54,7 +54,7 @@ def plot_plate_carree(box, value, **pargs):
     return earth_plot(box, value, **pargs)
 
 
-def plot_signal_histogram(box, signal, **pargs):
+def plot_signal_histogram(box, signal, lower, upper, **pargs):
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -77,5 +77,7 @@ def plot_signal_histogram(box, signal, **pargs):
                   norm=colors.LogNorm(vmin=0.1, vmax=hist.max()),
                   cmap='Purples')
     ax.plot(box.dates, signal_flat.max(axis=1), '-', c='gray')
+    ax.axhline(lower)
+    ax.axhline(upper)
     # plt.close()
     return fig
