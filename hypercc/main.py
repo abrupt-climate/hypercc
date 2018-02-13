@@ -1,8 +1,10 @@
 import warnings
 import sys
+import locale
 from pathlib import Path
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
+locale.setlocale(locale.LC_ALL, '')
 
 
 def weave_report(config):
@@ -16,13 +18,13 @@ def print_nlesc_logo():
     print("\n     \033[47;30m Netherlands\033[48;2;0;174;239;37m▌"
           "\033[38;2;255;255;255me\u20d2Science\u20d2\033[37m▐"
           "\033[47;30mcenter \033[m"
-          "          ╒═══════════════════════════╕\n"
-          "                  and               "
-          "        │ HyperCanny Climate module │\n"
+          "          \033[0;90m╒═══════════════════════════╕\033[m\n"
+          "                  and                       "
+          "\033[0;90m│ \033[1;37mHyperCanny Climate module\033[0;90m │\n"
           " \033[47;30m \033[38;2;42;128;41;4m⊓ \033[24m"
           "\033[38;2;0;74;109m Wageningen"
           "\033[38;2;42;128;41m University & Research \033[m  "
-          "    ╰───────────────────────────╯\n", file=sys.stderr)
+          "    \033[90m╰───────────────────────────╯\033[m\n", file=sys.stderr)
 
 
 if __name__ == "__main__":
@@ -54,6 +56,10 @@ if __name__ == "__main__":
         "--data-folder", help="path to search for NetCDF files "
         "(default: %(default)s)",
         default='.', dest='data_folder')
+    parser.add_argument(
+        "--output-folder", help="folder where to put output of script "
+        "(default: %(default)s)",
+        default='.', dest='output_folder')
     subparser = parser.add_subparsers(
         help="command to run", dest='command')
 
@@ -79,8 +85,10 @@ if __name__ == "__main__":
         default='nc', dest='extension')
     report_parser.add_argument(
         "--month", help="which month to study, give abbreviated month name "
-        "as by your locale.",
-        default=MONTHS[0], choices=MONTHS)
+        "as by your locale, or a number in the inclusive range of [1-12].",
+        default=MONTHS[0],
+        choices=MONTHS + list(map(str, range(1, 13)))
+        + list(map('{:02}'.format, range(1, 10))))
     report_parser.add_argument(
         "--sigma-x", help="spacial smoothing scale, quantity with unit "
         "(default: 200 km)",
@@ -107,6 +115,9 @@ if __name__ == "__main__":
         dest='taper', action='store_false')
 
     args = parser.parse_args()
+    if args.month not in MONTHS:
+        args.month = MONTHS[int(args.month) - 1]
+
     if args.command == 'report':
         workflow = args.func(args)
         result = run(workflow, n_threads=N_CORES, registry=registry,

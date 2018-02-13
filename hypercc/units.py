@@ -6,6 +6,7 @@ from pint import UnitRegistry
 import locale
 
 unit = UnitRegistry()
+locale.setlocale(locale.LC_ALL, '')
 
 R_EARTH = 6.371e3 * unit.km
 DAY = 0.0027378507871321013 * unit.year

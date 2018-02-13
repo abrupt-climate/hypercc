@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for i in {0..11}
+do
+    date -d "2000-01-01 +$i months" +'%b'
+done

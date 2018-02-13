@@ -104,7 +104,7 @@ def generate_signal_plot(
     lower, upper = get_thresholds(config, calibration)
     fig = plot_signal_histogram(box, 1 / sobel_data[3], lower, upper)
     fig.suptitle(title)
-    fig.savefig(filename, bbox_inches='tight')
+    fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
 
@@ -210,7 +210,7 @@ def generate_region_plot(box, mask, title, filename, min_size=50):
     regions = np.where(np.isin(labels, big_enough), labels, 0)
     fig = plot_plate_carree(box, regions.max(axis=0))
     fig.suptitle(title)
-    fig.savefig(filename, bbox_inches='tight')
+    fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
 
@@ -221,7 +221,7 @@ def generate_year_plot(box, mask, title, filename):
     fig = plot_plate_carree(
         box, data, cmap='YlGnBu', vmin=years[0], vmax=years[-1])
     fig.suptitle(title)
-    fig.savefig(filename, bbox_inches='tight')
+    fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
 
@@ -231,11 +231,14 @@ def generate_event_count_plot(box, mask, title, filename):
     ax = fig.add_subplot(111)
     ax.plot(box.dates, mask.sum(axis=1).sum(axis=1))
     fig.suptitle(title)
-    fig.savefig(filename, bbox_inches='tight')
+    fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
 
 def generate_report(config):
+    output_path = Path(config.output_folder)
+    output_path.mkdir(parents=True, exist_ok=True)
+
     control_set = open_pi_control(config)
     calibration = compute_calibration(config, control_set)
 
@@ -244,13 +247,16 @@ def generate_report(config):
 
     signal_plot = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",
-        "signal.png")
+        output_path / "signal.png")
     region_plot = generate_region_plot(
-        data_set.box, canny_edges['edges'], "regions", "regions.png")
+        data_set.box, canny_edges['edges'], "regions",
+        output_path / "regions.png")
     year_plot = generate_year_plot(
-        data_set.box, canny_edges['edges'], "years", "years.png")
+        data_set.box, canny_edges['edges'], "years",
+        output_path / "years.png")
     event_count_plot = generate_event_count_plot(
-        data_set.box, canny_edges['edges'], "event count", "event_count.png")
+        data_set.box, canny_edges['edges'], "event count",
+        output_path / "event_count.png")
 
     return noodles.lift({
         'calibration': calibration,
