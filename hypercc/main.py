@@ -95,7 +95,8 @@ if __name__ == "__main__":
         default='pi-control-max', dest='upper_threshold')
     report_parser.add_argument(
         "--lower-threshold", help="method for estimating lower threshold "
-        "(default: %(default)s)", choices=['pi-control-3'],
+        "(default: %(default)s)", choices=[
+            'pi-control-3', 'pi-control-max*3/4', 'pi-control-max*1/2'],
         default='pi-control-3', dest='lower_threshold')
     report_parser.add_argument(
         "--sobel-scale", help="scaling of time/space in magnitude of Sobel"

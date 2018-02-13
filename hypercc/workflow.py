@@ -117,7 +117,16 @@ def get_thresholds(config, calibration):
     gamma = calibration['gamma'][3]
     mag_quartiles = np.sqrt(
         (calibration['distance'] * gamma)**2 + calibration['time']**2)
-    return mag_quartiles[3], mag_quartiles[4]
+
+    values = {
+        'pi-control-3': mag_quartiles[3],
+        'pi-control-max': mag_quartiles[4],
+        'pi-control-max*3/4': mag_quartiles[4] * 3/4,
+        'pi-control-max*1/2': mag_quartiles[4] * 1/2
+    }
+
+    return values[config.lower_threshold], \
+        values[config.upper_threshold]
 
 
 def hysteresis_thresholding(config, sobel_data, mask, calibration):
