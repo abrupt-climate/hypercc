@@ -43,7 +43,8 @@ if __name__ == "__main__":
     N_CORES = multiprocessing.cpu_count()
 
     print_nlesc_logo()
-    logging.getLogger('root').setLevel(logging.INFO)
+    logging.getLogger('root').setLevel(logging.WARNING)
+    logging.getLogger('noodles').setLevel(logging.WARNING)
     logging.info("This message should show.")
 
     parser = argparse.ArgumentParser(
@@ -108,5 +109,6 @@ if __name__ == "__main__":
     if args.command == 'report':
         workflow = args.func(args)
         result = run(workflow, n_threads=N_CORES, registry=registry,
-                     db_file='hypercc-cache.db', always_cache=False)
+                     db_file='hypercc-cache.db', always_cache=False,
+                     echo_log=False)
         print(result['calibration'])

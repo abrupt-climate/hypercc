@@ -109,7 +109,7 @@ def generate_signal_plot(
 
 
 def maximum_suppression(sobel_data):
-    mask = cp_edge_thinning(sobel_data.transpose([3, 2, 1, 0]))
+    mask = cp_edge_thinning(sobel_data.transpose([3, 2, 1, 0]).copy())
     return mask.transpose([2, 1, 0])
 
 
@@ -122,8 +122,9 @@ def get_thresholds(config, calibration):
 
 def hysteresis_thresholding(config, sobel_data, mask, calibration):
     lower, upper = get_thresholds(config, calibration)
+    print('    thresholds:', lower, upper)
     new_mask = cp_double_threshold(
-        sobel_data.transpose([3, 2, 1, 0]),
+        sobel_data.transpose([3, 2, 1, 0]).copy(),
         mask.transpose([2, 1, 0]),
         1. / upper,
         1. / lower)
@@ -131,19 +132,31 @@ def hysteresis_thresholding(config, sobel_data, mask, calibration):
 
 
 @noodles.schedule
-def apply_mask_to_edges(edges, mask):
+def apply_mask_to_edges(edges, mask, time_margin):
+    edges[:time_margin] = 0
+    edges[-time_margin:] = 0
     return edges * ~mask
+
+
+@noodles.schedule
+def transfer_magnitudes(x, y):
+    x[3] = y[3]
+    return x
 
 
 @noodles.schedule(store=True, call_by_ref=['data_set'])
 def compute_canny_edges(config, data_set, calibration):
+    print("computing canny edges")
     data = data_set.data
     box = data_set.box
 
     sigma_t, sigma_x = get_sigmas(config)
     weights = get_sobel_weights(config, calibration)
+    print("    calibrated weights:",
+          ['{:~P}'.format(w) for w in weights])
 
     if config.taper and isinstance(data, np.ma.core.MaskedArray):
+        print("    tapering")
         taper_masked_area(data, [0, 5, 5], 50)
 
     smooth_data = noodles.schedule(gaussian_filter)(
@@ -152,10 +165,11 @@ def compute_canny_edges(config, data_set, calibration):
         box, smooth_data, weight=weights)
     pixel_sobel = noodles.schedule(sobel_filter)(
         box, smooth_data, physical=False)
+    pixel_sobel = transfer_magnitudes(pixel_sobel, sobel_data)
     sobel_maxima = noodles.schedule(maximum_suppression)(pixel_sobel)
 
     if isinstance(data, np.ma.core.MaskedArray):
-        sobel_maxima = apply_mask_to_edges(sobel_maxima, data.mask)
+        sobel_maxima = apply_mask_to_edges(sobel_maxima, data.mask, 10)
 
     edges = noodles.schedule(hysteresis_thresholding)(
         config, sobel_data, sobel_maxima, calibration)
@@ -172,6 +186,7 @@ def label_regions(mask, min_size=50):
     big_enough = [x for x in range(1, n_features+1)
                   if (labels == x).sum() > min_size]
     return noodles.gather_dict(
+        n_features=n_features,
         regions=np.where(np.isin(labels, big_enough), labels, 0),
         labels=big_enough)
 
@@ -180,6 +195,7 @@ def label_regions(mask, min_size=50):
 def generate_region_plot(box, mask, title, filename, min_size=50):
     labels, n_features = ndimage.label(
         mask, ndimage.generate_binary_structure(3, 3))
+    print('    n_features:', n_features)
     big_enough = [x for x in range(1, n_features+1)
                   if (labels == x).sum() > min_size]
     regions = np.where(np.isin(labels, big_enough), labels, 0)
