@@ -25,78 +25,38 @@ def overlap_idx(t1, t2):
 
 
 class DataSet(object):
-    """Deals with sets of NetCDF files, combines data, and
-    generates a valid :py:class:`Box` instance from these files.
-    """
-    pattern = "{variable}_*mon_{model}_{scenario}" \
-              "_{realization}_??????-??????.{extension}"
-
-    def __init__(self, *, path, model: str, variable: str, scenario: str,
-                 realization: str, extension="nc", selection=slice(None)):
-        self.path = Path(path)
-        self.model = model
-        self.variable = variable
-        self.scenario = scenario
-        self.realization = realization
-        self.extension = extension
-        self.selection = selection
-
-        self._box = None
+    def __init__(self, paths, variable, selection=slice(None)):
         self.files = None
+        self.paths = paths
+        self.variable = variable
+        self.selection = selection
+        self._box = None
 
-        self.check()
+        self.check_and_load()
+
+    @staticmethod
+    def cmip5(path, model: str, variable: str, scenario: str,
+              realization: str, extension="nc", selection=slice(None)):
+        pattern = f"{variable}_*mon_{model}_{scenario}" \
+                  f"_{realization}_??????-??????.{extension}"
+        paths = list(Path(path).glob(pattern))
+        return DataSet(paths=paths, variable=variable, selection=selection)
 
     def __serialize__(self, pack):
         return pack({
-            'path': str(self.path),
-            'model': self.model,
+            'paths': self.paths,
             'variable': self.variable,
-            'scenario': self.scenario,
-            'realization': self.realization,
-            'extension': self.extension,
             'selection': self.selection
-        }, files=[str(f.path) for f in self.files])
+        })
 
     @classmethod
     def __construct__(cls, data):
         return DataSet(**data)
 
-    def __getitem__(self, selection):
-        result = copy(self)
-        # DataSet.__new__(DataSet)
-        # result.__dict__ = self.__dict__
-        result.selection = selection
-        return result
-
-    def check(self):
-        """Checks if files exist that match the given pattern. Then loads them
-        and checks if the coordinates are rectangular.
-
-        Raises:
-        *   FileNotFoundError if files were not found.
-        *   ValueError if the grid is not rectangular.
-        """
-        if not self.glob():
-            raise FileNotFoundError(self.glob_pattern)
-
-        self.load()
-
-        if not self.box.rectangular:
-            raise ValueError("Rectangular grid needed.")
-
-    @property
-    def glob_pattern(self):
-        """Produce glob pattern."""
-        return self.pattern.format(**self.__dict__)
-
-    def glob(self):
-        """Find files."""
-        return list(self.path.glob(self.glob_pattern))
-
     def load(self):
         """Open files, find overlaps."""
         self.files = sorted(
-            list(map(File, self.glob())),
+            list(map(File, self.paths)),
             key=lambda f: f.time[0])
 
         bounds = [overlap_idx(self.files[i].time, self.files[i+1].time)
@@ -104,6 +64,28 @@ class DataSet(object):
 
         for f, b in zip(self.files, bounds):
             f.bounds = b
+
+    def check_and_load(self):
+        """Checks if files exist that match the given pattern. Then loads them
+        and checks if the coordinates are rectangular.
+
+        Raises:
+        *   FileNotFoundError if files were not found.
+        *   ValueError if the grid is not rectangular.
+        """
+        for p in self.paths:
+            if not p.exists():
+                raise FileNotFoundError(p)
+
+        self.load()
+
+        if not self.box.rectangular:
+            raise ValueError("Rectangular grid needed.")
+
+    def __getitem__(self, selection):
+        result = copy(self)
+        result.selection = selection
+        return result
 
     @property
     def box(self):

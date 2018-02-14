@@ -1,17 +1,10 @@
 import warnings
 import sys
 import locale
-from pathlib import Path
+
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 locale.setlocale(locale.LC_ALL, '')
-
-
-def weave_report(config):
-    path = Path(__file__).parent / 'templates' / 'report.mdw'
-    template = path.open().read()
-    text = template.format(**vars(config))
-    print(text)
 
 
 def print_nlesc_logo():
@@ -35,14 +28,8 @@ if __name__ == "__main__":
     import matplotlib
     matplotlib.use('SVG')
 
-    from noodles.run.threading.sqlite3 import run_parallel as run
-
-    from .workflow import generate_report
+    from .workflow import generate_report, run
     from .units import MONTHS
-    from .serialisers import registry
-
-    import multiprocessing
-    N_CORES = multiprocessing.cpu_count()
 
     print_nlesc_logo()
     logging.getLogger('root').setLevel(logging.WARNING)
@@ -120,7 +107,5 @@ if __name__ == "__main__":
 
     if args.command == 'report':
         workflow = args.func(args)
-        result = run(workflow, n_threads=N_CORES, registry=registry,
-                     db_file='hypercc-cache.db', always_cache=False,
-                     echo_log=False)
+        result = run(workflow)
         print(result['calibration'])

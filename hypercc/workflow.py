@@ -18,6 +18,19 @@ from .calibration import calibrate_sobel
 from .plotting import plot_signal_histogram, plot_plate_carree
 
 
+def run(workflow, db_file='hypercc-cache.db'):
+    from noodles.run.threading.sqlite3 import run_parallel
+    from .serialisers import registry
+    import multiprocessing
+
+    N_CORES = multiprocessing.cpu_count()
+
+    return run_parallel(
+        workflow, n_threads=N_CORES, registry=registry,
+        db_file=db_file, always_cache=False,
+        echo_log=False)
+
+
 def open_data_files(config):
     """Open data files from the settings given in `config`.
 
@@ -26,7 +39,7 @@ def open_data_files(config):
     """
     month = month_index(config.month)
 
-    data_set = DataSet(
+    data_set = DataSet.cmip5(
         path=config.data_folder,
         model=config.model,
         variable=config.variable,
@@ -41,7 +54,7 @@ def open_data_files(config):
 def open_pi_control(config):
     month = month_index(config.month)
 
-    control_set = DataSet(
+    control_set = DataSet.cmip5(
         path=config.data_folder,
         model=config.model,
         variable=config.variable,
