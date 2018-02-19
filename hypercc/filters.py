@@ -149,11 +149,11 @@ def sobel_filter_3d_masked(
     afterwards."""
     sb_data = sobel_filter_3d(
         box, masked_data.data, weight, physical, variability)
-    new_mask = ndimage.binary_dilation(
-        masked_data.mask, ndimage.generate_binary_structure(3, 3),
-        iterations=1)
+    # new_mask = ndimage.binary_dilation(
+    #     masked_data.mask, ndimage.generate_binary_structure(3, 3),
+    #     iterations=1)
     return np.ma.MaskedArray(
-        sb_data, np.repeat(new_mask[None, :, :, :], 4, axis=0))
+        sb_data, np.repeat(masked_data.mask[None, :, :, :], 4, axis=0))
 
 
 def taper_masked_area(data, size, n_steps):
