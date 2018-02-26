@@ -1,0 +1,45 @@
+
+command tried, including info on extension:
+
+./bin/hypercc --data-folder /mnt/D_DRIVE/CMIP5/data_duplicate report --model ${model} --variable ${var} --scenario ${scen} --extension remapbilt100.nc --sigma-x ${sigmaL} km --sigma-t ${sigmaT} year --month ${mon_hyper} --lower-threshold ${lowthresh}
+
+
+result:
+
+
+sic MPI-ESM-LR
+
+      Netherlands▌e⃒Science⃒▐center           ╒═══════════════════════════╕
+                  and                       │ HyperCanny Climate module │
+  ⊓  Wageningen University & Research       ╰───────────────────────────╯
+
+Traceback (most recent call last):
+  File "/home/sebastian/Abrupt/hypercc/hypercc/data/data_set.py", line 99, in box
+    lat_bnds = self.files[0].lat_bnds
+  File "/home/sebastian/Abrupt/hypercc/hypercc/data/file.py", line 65, in lat_bnds
+    return self.data.variables['lat_bnds'][:]
+KeyError: 'lat_bnds'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.6/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/usr/lib/python3.6/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/sebastian/Abrupt/hypercc/hypercc/main.py", line 109, in <module>
+    workflow = args.func(args)
+  File "/home/sebastian/Abrupt/hypercc/hypercc/workflow.py", line 255, in generate_report
+    control_set = open_pi_control(config)
+  File "/home/sebastian/Abrupt/hypercc/hypercc/workflow.py", line 62, in open_pi_control
+    realization=config.realization)
+  File "/home/sebastian/Abrupt/hypercc/hypercc/data/data_set.py", line 43, in cmip5
+    return DataSet(paths=paths, variable=variable, selection=selection)
+  File "/home/sebastian/Abrupt/hypercc/hypercc/data/data_set.py", line 35, in __init__
+    self.check_and_load()
+  File "/home/sebastian/Abrupt/hypercc/hypercc/data/data_set.py", line 82, in check_and_load
+    if not self.box.rectangular:
+  File "/home/sebastian/Abrupt/hypercc/hypercc/data/data_set.py", line 109, in box
+    if lat[0] > lat[-1]:
+ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+
