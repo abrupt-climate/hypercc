@@ -38,7 +38,6 @@ def open_data_files(config):
     :return: DataSet
     """
     month = month_index(config.month)
-
     data_set = DataSet.cmip5(
         path=config.data_folder,
         model=config.model,
@@ -53,12 +52,12 @@ def open_data_files(config):
 
 def open_pi_control(config):
     month = month_index(config.month)
-
     control_set = DataSet.cmip5(
         path=config.data_folder,
         model=config.model,
         variable=config.variable,
         scenario='piControl',
+        extension=config.extension,
         realization=config.realization)
 
     return control_set[month::12]

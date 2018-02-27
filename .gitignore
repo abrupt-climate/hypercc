@@ -109,3 +109,7 @@ data
 *.db
 *.hdf5
 cache.lock
+
+# vim
+*~
+.*.swp
