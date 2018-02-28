@@ -44,6 +44,9 @@ if __name__ == "__main__":
         "(default: %(default)s)",
         default='.', dest='data_folder')
     parser.add_argument(
+        "--pi-control-folder", help="path to search for piControl data (if"
+        " different than data folder", dest='pi-control-folder')
+    parser.add_argument(
         "--output-folder", help="folder where to put output of script "
         "(default: %(default)s)",
         default='.', dest='output_folder')

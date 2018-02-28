@@ -52,8 +52,13 @@ def open_data_files(config):
 
 def open_pi_control(config):
     month = month_index(config.month)
+    if config.pi_control_folder:
+        pi_control_folder = config.pi_control_folder
+    else:
+        pi_control_folder = config.data_folder
+
     control_set = DataSet.cmip5(
-        path=config.data_folder,
+        path=pi_control_folder,
         model=config.model,
         variable=config.variable,
         scenario='piControl',
