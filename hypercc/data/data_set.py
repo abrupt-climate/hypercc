@@ -37,8 +37,7 @@ class DataSet(object):
     @staticmethod
     def cmip5(path, model: str, variable: str, scenario: str,
               realization: str, extension="nc", selection=slice(None)):
-        pattern = f"{variable}_*mon_{model}_{scenario}" \
-                  f"_{realization}_??????-??????.{extension}".format(variable=variable, model=model, scenario=scenario, realization=realization, extension=extension)
+        pattern = "{variable}_*mon_{model}_{scenario}_{realization}_??????-??????.{extension}".format(variable=variable, model=model, scenario=scenario, realization=realization, extension=extension)
         paths = list(Path(path).glob(pattern))
         return DataSet(paths=paths, variable=variable, selection=selection)
 
