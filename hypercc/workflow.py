@@ -96,9 +96,13 @@ def compute_calibration(config, data_set):
     return calibration
 
 
-@noodles.schedule
 def get_calibration_factor(config, calibration):
-    return calibration['gamma'][3]
+    quartile = ['min', '1st', 'median', '3rd', 'max'] \
+        .index(config.calibration_quartile)
+    gamma = calibration['gamma'][quartile]
+    print("Calibration gamma[{}] = {}"
+          .format(config.calibration_quartile, gamma))
+    return gamma
 
 
 def get_sigmas(config):
@@ -109,7 +113,7 @@ def get_sigmas(config):
 
 def get_sobel_weights(config, calibration):
     sobel_scale = float(config.sobel_scale[0]) * unit(config.sobel_scale[1])
-    gamma = calibration['gamma'][3]
+    gamma = get_calibration_factor(config, calibration)
     sobel_delta_t = 1.0 * unit.year
     sobel_delta_x = sobel_delta_t * sobel_scale * gamma
     return [sobel_delta_t, sobel_delta_x, sobel_delta_x]
@@ -131,7 +135,7 @@ def maximum_suppression(sobel_data):
 
 
 def get_thresholds(config, calibration):
-    gamma = calibration['gamma'][3]
+    gamma = get_calibration_factor(config, calibration)
     mag_quartiles = np.sqrt(
         (calibration['distance'] * gamma)**2 + calibration['time']**2)
 
@@ -206,7 +210,7 @@ def compute_canny_edges(config, data_set, calibration):
 
 
 @noodles.schedule
-def compute_peakiness(data_set, canny):
+def compute_peakiness(canny):
     tgrad = canny['sobel'][0]/canny['sobel'][3]      # unit('1/year');
     tgrad_residual = tgrad - np.mean(tgrad, axis=0)  # remove time mean
     maxdist = np.max(abs(tgrad_residual), axis=0)    # maximum distance from
@@ -222,7 +226,7 @@ def generate_peakiness_plot(box, canny, peakiness, title, filename):
     my_cmap = matplotlib.cm.get_cmap('rainbow')
     my_cmap.set_under('w')
     maxm = canny['edges'].max(axis=0)
-    fig = plot_plate_carree(box, peakiness * maxm, cmap=my_cmap, vmin=1)
+    fig = plot_plate_carree(box, peakiness * maxm, cmap=my_cmap)
     fig.suptitle(title)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
@@ -284,7 +288,7 @@ def generate_report(config):
 
     data_set = open_data_files(config)
     canny_edges = compute_canny_edges(config, data_set, calibration)
-    peakiness = compute_peakiness(data_set, canny_edges)
+    peakiness = compute_peakiness(canny_edges)
 
     signal_plot = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",

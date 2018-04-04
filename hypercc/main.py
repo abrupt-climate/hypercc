@@ -88,6 +88,11 @@ if __name__ == "__main__":
         "(default: 10 year)",
         nargs=2, default=['10', 'year'], dest='sigma_t')
     report_parser.add_argument(
+        "--calibration-quartile", help="quartile of sobel response function"
+        " to equalize in calibration.",
+        choices=['min', '1st', 'median', '3rd', 'max'],
+        default=['3rd'], dest='calibration_quartile'),
+    report_parser.add_argument(
         "--upper-threshold", help="method for estimating upper threshold "
         "(default: %(default)s)", choices=['pi-control-max'],
         default='pi-control-max', dest='upper_threshold')
