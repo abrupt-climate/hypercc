@@ -115,7 +115,7 @@ def get_sobel_weights(config, calibration):
     return [sobel_delta_t, sobel_delta_x, sobel_delta_x]
 
 
-@noodles.schedule(store=True)
+@noodles.schedule
 def generate_signal_plot(
         config, calibration, box, sobel_data, title, filename):
     lower, upper = get_thresholds(config, calibration)
@@ -170,7 +170,7 @@ def transfer_magnitudes(x, y):
     return x
 
 
-@noodles.schedule(store=True, call_by_ref=['data_set'])
+@noodles.schedule(call_by_ref=['data_set'])
 def compute_canny_edges(config, data_set, calibration):
     print("computing canny edges")
     data = data_set.data
@@ -206,6 +206,29 @@ def compute_canny_edges(config, data_set, calibration):
 
 
 @noodles.schedule
+def compute_peakiness(data_set, canny):
+    tgrad = canny['sobel'][0]/canny['sobel'][3]      # unit('1/year');
+    tgrad_residual = tgrad - np.mean(tgrad, axis=0)  # remove time mean
+    maxdist = np.max(abs(tgrad_residual), axis=0)    # maximum distance from
+    stdevdist = np.std(tgrad_residual, axis=0)       # stdev
+    peakiness = maxdist / stdevdist                  # peakines = maxdist/stdev
+    return peakiness
+
+
+@noodles.schedule
+def generate_peakiness_plot(box, canny, peakiness, title, filename):
+    import matplotlib
+
+    my_cmap = matplotlib.cm.get_cmap('rainbow')
+    my_cmap.set_under('w')
+    maxm = canny['edges'].max(axis=0)
+    fig = plot_plate_carree(box, peakiness * maxm, cmap=my_cmap, vmin=1)
+    fig.suptitle(title)
+    fig.savefig(str(filename), bbox_inches='tight')
+    return Path(filename)
+
+
+@noodles.schedule
 def label_regions(mask, min_size=50):
     labels, n_features = ndimage.label(
         mask, ndimage.generate_binary_structure(3, 3))
@@ -217,7 +240,7 @@ def label_regions(mask, min_size=50):
         labels=big_enough)
 
 
-@noodles.schedule(store=True)
+@noodles.schedule
 def generate_region_plot(box, mask, title, filename, min_size=50):
     labels, n_features = ndimage.label(
         mask, ndimage.generate_binary_structure(3, 3))
@@ -231,7 +254,7 @@ def generate_region_plot(box, mask, title, filename, min_size=50):
     return Path(filename)
 
 
-@noodles.schedule(store=True)
+@noodles.schedule
 def generate_year_plot(box, mask, title, filename):
     years = np.array([d.year for d in box.dates])
     data = (years[:, None, None] * mask).max(axis=0)
@@ -242,7 +265,7 @@ def generate_year_plot(box, mask, title, filename):
     return Path(filename)
 
 
-@noodles.schedule(store=True)
+@noodles.schedule
 def generate_event_count_plot(box, mask, title, filename):
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -261,6 +284,7 @@ def generate_report(config):
 
     data_set = open_data_files(config)
     canny_edges = compute_canny_edges(config, data_set, calibration)
+    peakiness = compute_peakiness(data_set, canny_edges)
 
     signal_plot = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",
@@ -274,11 +298,18 @@ def generate_report(config):
     event_count_plot = generate_event_count_plot(
         data_set.box, canny_edges['edges'], "event count",
         output_path / "event_count.png")
+    peakiness_plot = generate_peakiness_plot(
+        data_set.box, canny_edges, peakiness,
+        "peakiness", output_path / "peakiness.png")
 
     return noodles.lift({
         'calibration': calibration,
+        'statistics': {
+            'max_peakiness': peakiness.max()
+        },
         'signal_plot': signal_plot,
         'region_plot': region_plot,
         'year_plot': year_plot,
-        'event_count_plot': event_count_plot
+        'event_count_plot': event_count_plot,
+        'peakiness_plot': peakiness_plot
     })

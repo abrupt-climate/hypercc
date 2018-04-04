@@ -45,7 +45,7 @@ if __name__ == "__main__":
         default='.', dest='data_folder')
     parser.add_argument(
         "--pi-control-folder", help="path to search for piControl data (if"
-        " different than data folder", dest='pi-control-folder')
+        " different than data folder", dest='pi_control_folder')
     parser.add_argument(
         "--output-folder", help="folder where to put output of script "
         "(default: %(default)s)",
@@ -112,3 +112,4 @@ if __name__ == "__main__":
         workflow = args.func(args)
         result = run(workflow)
         print(result['calibration'])
+        print("max peakiness:", result['statistics']['max_peakiness'])
