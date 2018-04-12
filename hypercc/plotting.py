@@ -79,5 +79,13 @@ def plot_signal_histogram(box, signal, lower, upper, **pargs):
     ax.plot(box.dates, signal_flat.max(axis=1), '-', c='gray')
     ax.axhline(lower)
     ax.axhline(upper)
+
+## if upper threshold is above the maximum signal, stil show it:
+## is being ignored-... why???
+    # if signal.max() < upper:
+    # 	ax.set_autoscale_on(False)
+    #	ax.set_ylim([0,upper*2])
+
+
     # plt.close()
     return fig
