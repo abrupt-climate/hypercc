@@ -118,3 +118,4 @@ if __name__ == "__main__":
         result = run(workflow)
         print(result['calibration'])
         print("max peakiness:", result['statistics']['max_peakiness'])
+        print("max maxTgrad:", result['statistics']['max_maxTgrad'])

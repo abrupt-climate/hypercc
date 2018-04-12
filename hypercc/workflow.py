@@ -342,7 +342,8 @@ def generate_report(config):
     return noodles.lift({
         'calibration': calibration,
         'statistics': {
-            'max_peakiness': peakiness.max()
+            'max_peakiness': peakiness.max(),
+            'max_maxTgrad': maxTgrad.max()
         },
         'signal_plot': signal_plot,
         'region_plot': region_plot,
