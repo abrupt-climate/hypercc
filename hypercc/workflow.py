@@ -233,8 +233,10 @@ def compute_peakiness(canny):
     peakiness[indices_mask]=0                           # otherwise they show on map
     return peakiness
 
+
+
 @noodles.schedule
-def generate_peakiness_plot(box, canny, peakiness, title, filename):
+def generate_peakiness_plot(box, peakiness, title, filename):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
     my_cmap.set_under('w')
@@ -244,7 +246,7 @@ def generate_peakiness_plot(box, canny, peakiness, title, filename):
     return Path(filename)
 
 @noodles.schedule
-def generate_maxTgrad_plot(box, canny, maxTgrad, title, filename):
+def generate_maxTgrad_plot(box, maxTgrad, title, filename):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
     my_cmap.set_under('w')
@@ -252,6 +254,25 @@ def generate_maxTgrad_plot(box, canny, maxTgrad, title, filename):
     fig.suptitle(title)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
+
+
+@noodles.schedule
+def generate_timeseries_plot(box, data, maxTgrad, peakiness, title, filename):
+    import matplotlib
+    lonind=np.argmax(np.max(peakiness, axis=0))
+    latind=np.argmax(np.max(peakiness, axis=1))
+    tspeak=data[:,latind,lonind]
+    lonind=np.argmax(np.max(maxTgrad, axis=0))
+    latind=np.argmax(np.max(maxTgrad, axis=1))
+    tsgrad=data[:,latind,lonind]
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(box.dates, tspeak, 'k', box.dates, tsgrad, 'r')
+    fig.suptitle(title)
+    #fig.legend('ts with largest peakiness','ts with largest time gradient', 'Location','Best')
+    fig.savefig(str(filename), bbox_inches='tight')
+    return Path(filename)
+
 
 @noodles.schedule
 def label_regions(mask, min_size=0):
@@ -281,6 +302,8 @@ def generate_region_plot(box, mask, title, filename, min_size=0):
     	fig.suptitle(title)
     	fig.savefig(str(filename), bbox_inches='tight')
     	return Path(filename)
+
+
 
 @noodles.schedule
 def generate_year_plot(box, mask, title, filename):
@@ -333,11 +356,14 @@ def generate_report(config):
         data_set.box, canny_edges['edges'], "event count",
         output_path / "event_count.png")
     peakiness_plot = generate_peakiness_plot(
-        data_set.box, canny_edges, peakiness,
+        data_set.box, peakiness,
         "peakiness", output_path / "peakiness.png")
     maxTgrad_plot = generate_maxTgrad_plot(
-        data_set.box, canny_edges, maxTgrad,
+        data_set.box, maxTgrad,
         "max. time gradient", output_path / "maxTgrad.png")
+    timeseries_plot = generate_timeseries_plot(
+        data_set.box, data_set.data, maxTgrad, peakiness, "timeseries", 
+        output_path / "timeseries.png")
 
     return noodles.lift({
         'calibration': calibration,
@@ -350,5 +376,6 @@ def generate_report(config):
         'year_plot': year_plot,
         'event_count_plot': event_count_plot,
         'peakiness_plot': peakiness_plot,
-        'maxTgrad_plot': maxTgrad_plot
+        'maxTgrad_plot': maxTgrad_plot,
+        'timeseries_plot': timeseries_plot
     })
