@@ -16,6 +16,17 @@ def calibrate_sobel(box, data, delta_t, delta_d):
     :param delta_d: start value for delta_d
     :return: dictionary with statistical information about data
     """
+
+    ## Some variables can be 0 (e.g. SW fluxes in polar winter). 
+    ## Add tiny noise to prevent calibration from failing because of that
+    #randn(shape(smooth_control_data))  ## this line fails, hence explicit for each dim:
+    len1=np.size(data, axis=0)
+    len2=np.size(data, axis=1)
+    len3=np.size(data, axis=2)
+    random_matrix=np.random.randn(len1,len2,len3)*1e-25
+    noise=np.where(abs(data)<1e-25,random_matrix,0)
+    data=data+noise
+
     sbc = sobel_filter(box, data, weight=[delta_t, delta_d, delta_d])
     if isinstance(data, np.ma.core.MaskedArray) \
             and (data.mask is not np.ma.nomask):
