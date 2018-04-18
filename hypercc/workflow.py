@@ -120,7 +120,7 @@ def get_sobel_weights(config, calibration):
 
 
 @noodles.schedule
-@noodles.schedule
+@noodles.maybe
 def generate_signal_plot(
         config, calibration, box, sobel_data, title, filename):
     lower, upper = get_thresholds(config, calibration)
