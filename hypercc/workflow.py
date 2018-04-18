@@ -88,9 +88,9 @@ def compute_calibration(config, data_set):
         print("    tapering on")
         taper_masked_area(data, [0, 5, 5], 50)
 
-    smooth_data = noodles.schedule(gaussian_filter)(
+    smooth_data = noodles.schedule(gaussian_filter, call_by_ref=['data'])(
         box, data, [sigma_t, sigma_x, sigma_x])
-    calibration = noodles.schedule(calibrate_sobel)(
+    calibration = noodles.schedule(calibrate_sobel, call_by_ref=['data'])(
         box, smooth_data, sobel_delta_t, sobel_delta_x)
 
     return calibration
@@ -130,6 +130,8 @@ def generate_signal_plot(
     return Path(filename)
 
 
+@noodles.schedule(call_by_ref=['sobel_data'])
+@noodles.maybe
 def maximum_suppression(sobel_data):
     mask = cp_edge_thinning(sobel_data.transpose([3, 2, 1, 0]).copy())
     return mask.transpose([2, 1, 0])
@@ -151,6 +153,8 @@ def get_thresholds(config, calibration):
         values[config.upper_threshold]
 
 
+@noodles.schedule(call_by_ref=['sobel_data', 'mask'])
+@noodles.maybe
 def hysteresis_thresholding(config, sobel_data, mask, calibration):
     lower, upper = get_thresholds(config, calibration)
     print('    thresholds:', lower, upper)
@@ -162,20 +166,27 @@ def hysteresis_thresholding(config, sobel_data, mask, calibration):
     return new_mask.transpose([2, 1, 0])
 
 
-@noodles.schedule
+# @noodles.schedule(call_by_ref=['edges', 'mask'])
 def apply_mask_to_edges(edges, mask, time_margin):
     edges[:time_margin] = 0
     edges[-time_margin:] = 0
     return edges * ~mask
 
 
-@noodles.schedule
+@noodles.schedule(call_by_ref=['x', 'y'])
 def transfer_magnitudes(x, y):
     x[3] = y[3]
     return x
 
 
+@noodles.schedule(call_by_ref=['sobel_data'])
+def max_signal(sobel_data):
+    """Compute the maximum signal."""
+    return 1. / sobel_data[-1].min()
+
+
 @noodles.schedule(call_by_ref=['data_set'])
+@noodles.maybe
 def compute_canny_edges(config, data_set, calibration):
     print("computing canny edges")
     data = data_set.data
@@ -190,20 +201,20 @@ def compute_canny_edges(config, data_set, calibration):
         print("    tapering")
         taper_masked_area(data, [0, 5, 5], 50)
 
-    smooth_data = noodles.schedule(gaussian_filter)(
-        box, data, [sigma_t, sigma_x, sigma_x])
-    sobel_data = noodles.schedule(sobel_filter)(
-        box, smooth_data, weight=weights)
-    pixel_sobel = noodles.schedule(sobel_filter)(
-        box, smooth_data, physical=False)
+    smooth_data = gaussian_filter(box, data, [sigma_t, sigma_x, sigma_x])
+    sobel_data = sobel_filter(box, smooth_data, weight=weights)
+
+    if 1. / sobel_data[-1].min() < calibration['magnitude'][4]:
+        raise ValueError("Maximum signal below calibration limit, no need to continue.");
+
+    pixel_sobel = sobel_filter(box, smooth_data, physical=False)
     pixel_sobel = transfer_magnitudes(pixel_sobel, sobel_data)
-    sobel_maxima = noodles.schedule(maximum_suppression)(pixel_sobel)
+    sobel_maxima = maximum_suppression(pixel_sobel)
 
     if isinstance(data, np.ma.core.MaskedArray):
         sobel_maxima = apply_mask_to_edges(sobel_maxima, data.mask, 10)
 
-    edges = noodles.schedule(hysteresis_thresholding)(
-        config, sobel_data, sobel_maxima, calibration)
+    edges = hysteresis_thresholding(config, sobel_data, sobel_maxima, calibration)
 
     return noodles.gather_dict(
         sobel=sobel_data,
@@ -342,18 +353,11 @@ def generate_event_count_plot(box, mask, title, filename):
     return Path(filename)
 
 
-def generate_report(config):
-    output_path = Path(config.output_folder)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    control_set = open_pi_control(config)
-    calibration = compute_calibration(config, control_set)
-
-    data_set = open_data_files(config)
-    canny_edges = compute_canny_edges(config, data_set, calibration)
+@noodles.schedule(call_by_ref=['data_set', 'canny_edges'])
+@noodles.maybe
+def make_report(config, data_set, calibration, canny_edges):
     maxTgrad = compute_maxTgrad(canny_edges)
     peakiness = compute_peakiness(canny_edges)
-
 
     signal_plot = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",
@@ -391,3 +395,15 @@ def generate_report(config):
         'maxTgrad_plot': maxTgrad_plot,
         'timeseries_plot': timeseries_plot
     })
+
+
+def generate_report(config):
+    output_path = Path(config.output_folder)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    control_set = open_pi_control(config)
+    calibration = compute_calibration(config, control_set)
+
+    data_set = open_data_files(config)
+    canny_edges = compute_canny_edges(config, data_set, calibration)
+    return make_report(config, data_set, calibration, canny_edges)

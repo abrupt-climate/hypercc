@@ -117,15 +117,19 @@ if __name__ == "__main__":
     if args.command == 'report':
         workflow = args.func(args)
         results = run(workflow)
-        print(results['calibration'])
-        print()
 
-        for name, result in results.items():
-            if noodles.failed(result):
-                print("==========================================")
-                print("Result {} failed: {}".format(name, result))
-                print("==========================================")
-                print()
+        if results:
+            print(results['calibration'])
+            print()
 
-        print("max peakiness:", results['statistics']['max_peakiness'])
-        print("max maxTgrad:", results['statistics']['max_maxTgrad'])
+            for name, result in results.items():
+                if noodles.failed(result):
+                    print("==========================================")
+                    print("Result {} failed: {}".format(name, result))
+                    print("==========================================")
+                    print()
+
+            print("max peakiness:", results['statistics']['max_peakiness'])
+            print("max maxTgrad:", results['statistics']['max_maxTgrad'])
+        else:
+            print(results)
