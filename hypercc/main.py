@@ -1,6 +1,7 @@
 import warnings
 import sys
 import locale
+import noodles
 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -115,7 +116,16 @@ if __name__ == "__main__":
 
     if args.command == 'report':
         workflow = args.func(args)
-        result = run(workflow)
-        print(result['calibration'])
-        print("max peakiness:", result['statistics']['max_peakiness'])
-        print("max maxTgrad:", result['statistics']['max_maxTgrad'])
+        results = run(workflow)
+        print(results['calibration'])
+        print()
+
+        for name, result in results.items():
+            if noodles.failed(result):
+                print("==========================================")
+                print("Result {} failed: {}".format(name, result))
+                print("==========================================")
+                print()
+
+        print("max peakiness:", results['statistics']['max_peakiness'])
+        print("max maxTgrad:", results['statistics']['max_maxTgrad'])

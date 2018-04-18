@@ -120,6 +120,7 @@ def get_sobel_weights(config, calibration):
 
 
 @noodles.schedule
+@noodles.maybe
 def generate_signal_plot(
         config, calibration, box, sobel_data, title, filename):
     lower, upper = get_thresholds(config, calibration)
@@ -210,6 +211,7 @@ def compute_canny_edges(config, data_set, calibration):
 
 
 @noodles.schedule
+@noodles.maybe
 def compute_maxTgrad(canny):
     tgrad = canny['sobel'][0]/canny['sobel'][3]       # unit('1/year');
     tgrad_residual = tgrad - np.mean(tgrad, axis=0)   # remove time mean
@@ -220,7 +222,9 @@ def compute_maxTgrad(canny):
     maxTgrad[indices_mask]=0                           # otherwise they show on map
     return maxTgrad
 
+
 @noodles.schedule
+@noodles.maybe
 def compute_peakiness(canny):
     tgrad = canny['sobel'][0]/canny['sobel'][3]      # unit('1/year');
     tgrad_residual = tgrad - np.mean(tgrad, axis=0)  # remove time mean
@@ -234,8 +238,8 @@ def compute_peakiness(canny):
     return peakiness
 
 
-
 @noodles.schedule
+@noodles.maybe
 def generate_peakiness_plot(box, peakiness, title, filename):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
@@ -245,7 +249,9 @@ def generate_peakiness_plot(box, peakiness, title, filename):
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
+
 @noodles.schedule
+@noodles.maybe
 def generate_maxTgrad_plot(box, maxTgrad, title, filename):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
@@ -257,6 +263,7 @@ def generate_maxTgrad_plot(box, maxTgrad, title, filename):
 
 
 @noodles.schedule
+@noodles.maybe
 def generate_timeseries_plot(box, data, maxTgrad, peakiness, title, filename):
     import matplotlib
     lonind=np.argmax(np.max(peakiness, axis=0))
@@ -275,6 +282,7 @@ def generate_timeseries_plot(box, data, maxTgrad, peakiness, title, filename):
 
 
 @noodles.schedule
+@noodles.maybe
 def label_regions(mask, min_size=0):
     labels, n_features = ndimage.label(
         mask, ndimage.generate_binary_structure(3, 3))
@@ -285,7 +293,9 @@ def label_regions(mask, min_size=0):
         regions=np.where(np.isin(labels, big_enough), labels, 0),
         labels=big_enough)
 
+
 @noodles.schedule
+@noodles.maybe
 def generate_region_plot(box, mask, title, filename, min_size=0):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
@@ -304,8 +314,8 @@ def generate_region_plot(box, mask, title, filename, min_size=0):
     	return Path(filename)
 
 
-
 @noodles.schedule
+@noodles.maybe
 def generate_year_plot(box, mask, title, filename):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
@@ -320,7 +330,9 @@ def generate_year_plot(box, mask, title, filename):
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
+
 @noodles.schedule
+@noodles.maybe
 def generate_event_count_plot(box, mask, title, filename):
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -362,7 +374,7 @@ def generate_report(config):
         data_set.box, maxTgrad,
         "max. time gradient", output_path / "maxTgrad.png")
     timeseries_plot = generate_timeseries_plot(
-        data_set.box, data_set.data, maxTgrad, peakiness, "timeseries", 
+        data_set.box, data_set.data, maxTgrad, peakiness, "timeseries",
         output_path / "timeseries.png")
 
     return noodles.lift({

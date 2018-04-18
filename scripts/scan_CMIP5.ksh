@@ -89,13 +89,11 @@ logfile=1
 
 
 ### error check:
-
-modellist="IPSL-CM5A-LR"
-varlist=rsuscs
-monlist="7"
+modellist="ACCESS1-0 ACCESS1-3"
+varlist=snw
+monlist=10
 calc_new=1
 logfile=0
-
 
 
 
