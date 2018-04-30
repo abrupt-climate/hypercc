@@ -11,6 +11,7 @@ def earth_plot(
         patch_greenwich=True,
         patch_north_pole=False,
         **pargs):
+    """Wrapper around Cartopy plotting, using `pcolormesh`."""
 
     lons = box.lon.copy()
     lats = box.lat.copy()
