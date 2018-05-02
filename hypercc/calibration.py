@@ -7,7 +7,7 @@ from .stats import weighted_quartiles
 from .filters import sobel_filter
 
 
-def calibrate_sobel(box, data, delta_t, delta_d):
+def calibrate_sobel(config, box, data, delta_t, delta_d):
     """Calibrate the weights of the Sobel operator.
 
     :param box: Box instance
@@ -17,9 +17,12 @@ def calibrate_sobel(box, data, delta_t, delta_d):
     :return: dictionary with statistical information about data
     """
 
-    ## Some variables can be 0 (e.g. SW fluxes in polar winter). 
+    ## Some variables can be 0 (e.g. SW fluxes in polar winter).
     ## Add tiny noise to prevent calibration from failing because of that
     #randn(shape(smooth_control_data))  ## this line fails, hence explicit for each dim:
+    quartile = ['min', '1st', 'median', '3rd', 'max'] \
+        .index(config.calibration_quartile)
+
     len1=np.size(data, axis=0)
     len2=np.size(data, axis=1)
     len3=np.size(data, axis=2)
@@ -46,11 +49,14 @@ def calibrate_sobel(box, data, delta_t, delta_d):
 
     ft = weighted_quartiles(var_t, weights)
     fx = weighted_quartiles(var_x, weights)
-    fm = weighted_quartiles(var_m, weights)
+
+    gamma = np.sqrt(ft / fx)
+    var_x *= gamma[quartile]
+    fm = weighted_quartiles(var_x**2 + var_t**2, weights)
 
     return {
         'time': np.sqrt(ft),
         'distance': np.sqrt(fx),
-        'magnitude': fm,
-        'gamma': np.sqrt(ft / fx)
+        'magnitude': np.sqrt(fm),
+        'gamma': gamma
     }

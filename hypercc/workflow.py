@@ -91,7 +91,7 @@ def compute_calibration(config, data_set):
     smooth_data = noodles.schedule(gaussian_filter, call_by_ref=['data'])(
         box, data, [sigma_t, sigma_x, sigma_x])
     calibration = noodles.schedule(calibrate_sobel, call_by_ref=['data'])(
-        box, smooth_data, sobel_delta_t, sobel_delta_x)
+        config, box, smooth_data, sobel_delta_t, sobel_delta_x)
 
     return calibration
 
@@ -133,7 +133,10 @@ def generate_signal_plot(
 @noodles.schedule(call_by_ref=['sobel_data'])
 @noodles.maybe
 def maximum_suppression(sobel_data):
-    mask = cp_edge_thinning(sobel_data.transpose([3, 2, 1, 0]).copy())
+    print("transposing data")
+    trdata = sobel_data.transpose([3, 2, 1, 0]).copy()
+    print("applying thinning")
+    mask = cp_edge_thinning(trdata)
     return mask.transpose([2, 1, 0])
 
 
@@ -166,7 +169,7 @@ def hysteresis_thresholding(config, sobel_data, mask, calibration):
     return new_mask.transpose([2, 1, 0])
 
 
-# @noodles.schedule(call_by_ref=['edges', 'mask'])
+@noodles.schedule(call_by_ref=['edges', 'mask'])
 def apply_mask_to_edges(edges, mask, time_margin):
     edges[:time_margin] = 0
     edges[-time_margin:] = 0
@@ -204,7 +207,11 @@ def compute_canny_edges(config, data_set, calibration):
     smooth_data = gaussian_filter(box, data, [sigma_t, sigma_x, sigma_x])
     sobel_data = sobel_filter(box, smooth_data, weight=weights)
 
-    if 1. / sobel_data[-1].min() < calibration['magnitude'][4]:
+    max_signal_value = 1 / sobel_data[-1].min()
+    max_cal = calibration['magnitude'][4]
+    print("maximum signal in control:", max_cal)
+    print("maximum signla in data:", max_signal_value)
+    if max_signal_value < max_cal:
         raise ValueError("Maximum signal below calibration limit, no need to continue.");
 
     pixel_sobel = sobel_filter(box, smooth_data, physical=False)
@@ -358,6 +365,7 @@ def generate_event_count_plot(box, mask, title, filename):
 def make_report(config, data_set, calibration, canny_edges):
     maxTgrad = compute_maxTgrad(canny_edges)
     peakiness = compute_peakiness(canny_edges)
+    output_path = Path(config.output_folder)
 
     signal_plot = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",

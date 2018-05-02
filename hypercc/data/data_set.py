@@ -37,8 +37,17 @@ class DataSet(object):
     @staticmethod
     def cmip5(path, model: str, variable: str, scenario: str,
               realization: str, extension="nc", selection=slice(None)):
-        pattern = "{variable}_*mon_{model}_{scenario}_{realization}_??????-??????.{extension}".format(variable=variable, model=model, scenario=scenario, realization=realization, extension=extension)
+        pattern = "{variable}_*mon_{model}_{scenario}_{realization}_" \
+                  "??????-??????.{extension}".format(
+                      variable=variable, model=model, scenario=scenario,
+                      realization=realization, extension=extension)
         paths = list(Path(path).glob(pattern))
+        if not paths:
+            print("No file found matching pattern\n    {}"
+                  "\nin directory\n    {}\n".format(
+                      pattern, path))
+            raise FileNotFoundError(str(Path(path) / pattern))
+
         return DataSet(paths=paths, variable=variable, selection=selection)
 
     def __serialize__(self, pack):
