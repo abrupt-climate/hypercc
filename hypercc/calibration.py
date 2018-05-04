@@ -7,7 +7,7 @@ from .stats import weighted_quartiles
 from .filters import sobel_filter
 
 
-def calibrate_sobel(config, box, data, delta_t, delta_d):
+def calibrate_sobel(quartile, box, data, delta_t, delta_d):
     """Calibrate the weights of the Sobel operator.
 
     :param box: Box instance
@@ -20,8 +20,8 @@ def calibrate_sobel(config, box, data, delta_t, delta_d):
     ## Some variables can be 0 (e.g. SW fluxes in polar winter).
     ## Add tiny noise to prevent calibration from failing because of that
     #randn(shape(smooth_control_data))  ## this line fails, hence explicit for each dim:
-    quartile = ['min', '1st', 'median', '3rd', 'max'] \
-        .index(config.calibration_quartile)
+    #quartile = ['min', '1st', 'median', '3rd', 'max'] \
+    #.index(config.calibration_quartile)
 
     len1=np.size(data, axis=0)
     len2=np.size(data, axis=1)

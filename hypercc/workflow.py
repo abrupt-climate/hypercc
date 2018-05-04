@@ -70,6 +70,9 @@ def open_pi_control(config):
 
 @noodles.schedule(store=True, call_by_ref=['data_set'])
 def compute_calibration(config, data_set):
+    quartile = ['min', '1st', 'median', '3rd', 'max'] \
+        .index(config.calibration_quartile)
+
     sigma_t, sigma_x = get_sigmas(config)
     sobel_scale = float(config.sobel_scale[0]) * unit(config.sobel_scale[1])
     sobel_delta_t = 1.0 * unit.year
@@ -91,7 +94,7 @@ def compute_calibration(config, data_set):
     smooth_data = noodles.schedule(gaussian_filter, call_by_ref=['data'])(
         box, data, [sigma_t, sigma_x, sigma_x])
     calibration = noodles.schedule(calibrate_sobel, call_by_ref=['data'])(
-        config, box, smooth_data, sobel_delta_t, sobel_delta_x)
+        quartile, box, smooth_data, sobel_delta_t, sobel_delta_x)
 
     return calibration
 
