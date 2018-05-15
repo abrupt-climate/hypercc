@@ -24,6 +24,15 @@ def overlap_idx(t1, t2):
         return slice(0, idx[0])
 
 
+class LoadedDataSet(object):
+    def __init__(self, box, data):
+        self.box = box
+        self.data = data
+
+    def __getitem__(self, s):
+        return LoadedDataSet(self.box[s], self.data[s])
+
+
 class DataSet(object):
     def __init__(self, paths, variable, selection=slice(None)):
         self.files = None
@@ -94,6 +103,12 @@ class DataSet(object):
         result = copy(self)
         result.selection = selection
         return result
+
+    def annual_mean(self):
+        shape = (self.box.shape[0] // 12, 12) + self.box.shape[1:]
+        return LoadedDataSet(
+            self.box[::12],
+            self.data[:shape[0]*12].reshape(shape).mean(axis=1))
 
     @property
     def box(self):

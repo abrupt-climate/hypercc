@@ -37,7 +37,6 @@ def open_data_files(config):
     :param config: namespace object (as returned by argparser)
     :return: DataSet
     """
-    month = month_index(config.month)
     data_set = DataSet.cmip5(
         path=config.data_folder,
         model=config.model,
@@ -47,11 +46,10 @@ def open_data_files(config):
         extension=config.extension
     )
 
-    return data_set[month::12]
+    return data_set
 
 
 def open_pi_control(config):
-    month = month_index(config.month)
     if config.pi_control_folder:
         pi_control_folder = config.pi_control_folder
     else:
@@ -65,7 +63,21 @@ def open_pi_control(config):
         extension=config.extension,
         realization=config.realization)
 
-    return control_set[month::12]
+    return control_set
+
+
+@noodles.schedule(call_by_ref=['data_set'])
+@noodles.maybe
+def select_month(config, data_set):
+    month = month_index(config.month)
+    return data_set[month::12]
+
+
+@noodles.schedule(call_by_ref=['data_set'])
+@noodles.maybe
+def annual_mean(data_set):
+    print("Computing annual mean.")
+    return data_set.annual_mean()
 
 
 @noodles.schedule(store=True, call_by_ref=['data_set'])
@@ -412,9 +424,16 @@ def generate_report(config):
     output_path = Path(config.output_folder)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    control_set = open_pi_control(config)
-    calibration = compute_calibration(config, control_set)
-
     data_set = open_data_files(config)
+    control_set = open_pi_control(config)
+
+    if config.annual:
+        data_set = annual_mean(data_set)
+        control_set = annual_mean(control_set)
+    else:
+        data_set = select_month(config, data_set)
+        control_set = select_month(config, control_set)
+
+    calibration = compute_calibration(config, control_set)
     canny_edges = compute_canny_edges(config, data_set, calibration)
     return make_report(config, data_set, calibration, canny_edges)

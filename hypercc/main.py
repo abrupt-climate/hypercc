@@ -75,6 +75,10 @@ if __name__ == "__main__":
         "--extension", help="extension to data files (default: %(default)s)",
         default='nc', dest='extension')
     report_parser.add_argument(
+        "--annual", help="compute annual mean of data instead of selecting "
+        " a single month (--month argument is ignored)", dest='annual',
+        action='store_true')
+    report_parser.add_argument(
         "--month", help="which month to study, give abbreviated month name "
         "as by your locale, or a number in the inclusive range of [1-12].",
         default=MONTHS[0],
