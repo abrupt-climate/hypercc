@@ -185,6 +185,7 @@ def hysteresis_thresholding(config, sobel_data, mask, calibration):
 
 
 @noodles.schedule(call_by_ref=['edges', 'mask'])
+@noodles.maybe
 def apply_mask_to_edges(edges, mask, time_margin):
     edges[:time_margin] = 0
     edges[-time_margin:] = 0

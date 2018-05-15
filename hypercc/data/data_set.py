@@ -107,8 +107,8 @@ class DataSet(object):
     def annual_mean(self):
         shape = (self.box.shape[0] // 12, 12) + self.box.shape[1:]
         return LoadedDataSet(
-            self.box[::12],
-            self.data[:shape[0]*12].reshape(shape).mean(axis=1))
+            self.box[::12][:shape[0]],
+            self.data[:shape[0]*12].reshape(shape).mean(axis=1).astype('float32'))
 
     @property
     def box(self):
@@ -155,5 +155,5 @@ class DataSet(object):
     def data(self):
         """Concatenates data from entire dataset into single array."""
         return np.ma.concatenate(
-            [f.get_masked(self.variable)
+            [f.get_masked(self.variable).astype('float32')
              for f in self.files])[self.selection]
