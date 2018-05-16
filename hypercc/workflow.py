@@ -80,11 +80,11 @@ def annual_mean(data_set):
     return data_set.annual_mean()
 
 
-@noodles.schedule(store=True, call_by_ref=['data_set'])
+#@noodles.schedule(store=False, call_by_ref=['data_set'])  #Sebastian: use no cache
+@noodles.schedule(call_by_ref=['data_set'])
 def compute_calibration(config, data_set):
     quartile = ['min', '1st', 'median', '3rd', 'max'] \
         .index(config.calibration_quartile)
-
     sigma_t, sigma_x = get_sigmas(config)
     sobel_scale = float(config.sobel_scale[0]) * unit(config.sobel_scale[1])
     sobel_delta_t = 1.0 * unit.year
@@ -224,10 +224,13 @@ def compute_canny_edges(config, data_set, calibration):
     sobel_data = sobel_filter(box, smooth_data, weight=weights)
 
     max_signal_value = 1 / sobel_data[-1].min()
-    max_cal = calibration['magnitude'][4]
-    print("maximum signal in control:", max_cal)
-    print("maximum signla in data:", max_signal_value)
-    if max_signal_value < max_cal:
+#    max_cal = calibration['magnitude'][4]         ## Sebastian, 16 May 2018: use upper threshold!
+#    print("maximum signal in control:", max_cal)
+    lower, upper = get_thresholds(config, calibration)
+    print("maximum signal in control:", upper)
+    print("maximum signal in data:", max_signal_value)
+#    if max_signal_value < max_cal:
+    if max_signal_value < upper:
         raise ValueError("Maximum signal below calibration limit, no need to continue.");
 
     pixel_sobel = sobel_filter(box, smooth_data, physical=False)
@@ -252,8 +255,9 @@ def compute_maxTgrad(canny):
     maxm = canny['edges'].max(axis=0)		      # mask
     maxTgrad = np.max(abs(tgrad_residual), axis=0)    # maximum of time gradient
     maxTgrad = maxTgrad * maxm
+    maxTgrad[np.isnan(maxTgrad)]=0                    # can be nan when var is constant
     indices_mask=np.where(maxTgrad>np.max(maxTgrad))  # set missing values to 0
-    maxTgrad[indices_mask]=0                           # otherwise they show on map
+    maxTgrad[indices_mask]=0                          # otherwise they show on map
     return maxTgrad
 
 
@@ -267,6 +271,7 @@ def compute_peakiness(canny):
     maxm = canny['edges'].max(axis=0)		     # mask
     peakiness = maxTgrad / stdevdist                 # peakines = maxdist/stdev
     peakiness = peakiness * maxm                     # 0 where no event
+    peakiness[np.isnan(peakiness)]=0                 # can be nan when var is constant
     indices_mask=np.where(peakiness>np.max(peakiness))  # set missing values to 0
     peakiness[indices_mask]=0                           # otherwise they show on map
     return peakiness
