@@ -12,19 +12,22 @@ modellist="ACCESS1-0 ACCESS1-3 bcc-csm1-1 bcc-csm1-1-m BNU-ESM CanAM4 CanCM4 Can
 
 
 
-
 # variables
 
 realm=atmosphere
 
 ## fast atm and land vars
-varlist="  snw   lai  gpp npp rlus huss  prsn prw ps rlut rsut      snc snw   mrsos mrso rh ra fFire fVegLitter fVegSoil tran   snd mrro mrros nbp         rsds rlds  clt hurs hfss hfls rsus rlus pr prc tas tasmin tasmax sfcWind wap500 ci cltc clc cls clivi clwvi sci  rhs cct rldscs rlutcs rsdscs rsuscs    rsutcs tauu tauv ts uas vas      snm    rGrowth rMaint  tpf alb cLitter"
-monlist="1 4 7 10"
+#varlist="  snw   lai  gpp npp rlus huss  prsn prw ps rlut rsut      snc snw   mrsos mrso rh ra fFire fVegLitter fVegSoil tran   snd mrro mrros nbp         rsds rlds  clt hurs hfss hfls rsus rlus pr prc tas tasmin tasmax sfcWind wap500 ci cltc clc cls clivi clwvi sci  rhs cct rldscs rlutcs rsdscs rsuscs    rsutcs tauu tauv ts uas vas      snm    rGrowth rMaint  tpf alb cLitter"
+#monlist="1 4 7 10"  # 1 3 5 7 9 11
 
 
 ## slow land and atm vars,
-#varlist="cSoil cVeg baresoilFrac grassFrac treeFrac shrubFrac vegFrac treeFracPrimDec treeFracPrimEver treeFracPrimSecDec treeFracPrimSecEver burntArea c3PftFrac c4PftFrac"
-#monlist="13"
+varlist="cSoil cVeg baresoilFrac grassFrac treeFrac shrubFrac vegFrac treeFracPrimDec treeFracPrimEver treeFracPrimSecDec treeFracPrimSecEver burntArea c3PftFrac c4PftFrac"
+monlist="13"
+
+
+
+
 
 
 
@@ -50,8 +53,8 @@ monlist="1 4 7 10"
 
 
 calc_new=0
-logfile=1
-
+write_logfile=1
+use_duplicate_data_fold=0
 
 
 sigmaS=100
@@ -85,9 +88,6 @@ for var in ${varlist}; do
 for model in ${modellist}; do
 for mon in ${monlist}; do
 
-echo ""
-echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} year ${sigmaS} km, thresholds: ${thresh1} ${thresh2}"
-
 
 # remove cache if too large (can also switch off cache in workflow.py)
 if [[ -f hypercc-cache.hdf5 ]]; then
@@ -98,10 +98,17 @@ if [[ -f hypercc-cache.hdf5 ]]; then
   fi
 fi
 
+logfile=${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
+
+if [[ ! -f ${logfile} || ${calc_new} == 1 ]]; then
 
 
-if [[ ! -f ${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt || ${calc_new} == 1 ]]; then
 
+if [[ ${write_logfile} == 1 ]]; then
+  mkdir -p ${outpath}/logs/${var}
+  echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} year ${sigmaS} km, thresholds: ${thresh1} ${thresh2}" > ${logfile}
+  echo ""
+fi
 
 ## clear figures (needs to have enough time for new time stamp)
 mkdir -p ${outpath}/figs/${var}
@@ -117,28 +124,38 @@ if [[ ${realm} == ocean ]]; then
 
   extension="remapbilt100.nc"
 
-  rcppath=/media/sf_D_DRIVE/CMIP5/data_duplicate
-  piCpath=${rcppath}
+
+if [[ ${use_duplicate_data_fold} == 1 ]]; then
+   rcppath=/media/sf_D_DRIVE/CMIP5/data_duplicate
+   piCpath=${rcppath}
+else
+  echo "need to choose data_duplicate folder for regridded files!"
+  exit
+fi
+
 
   files_rcp=`ls ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.${extension} 2>/dev/null | wc -w `
   files_piC=`ls ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.${extension} 2>/dev/null | wc -w`
 
   if [[ ${files_rcp} -gt 0 && ${files_piC} -gt 0 ]]; then
-    if [[ ${logfile} == 1 ]]; then
-      mkdir -p ${outpath}/logs/${var}
-        echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} year ${sigmaS} km, thresholds: ${thresh1} ${thresh2}" > ${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
+    rm -f ${logfile}
+
+    echo ""
+    echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} year ${sigmaS} km, thresholds: ${thresh1} ${thresh2}"
+
+    if [[ ${write_logfile} == 1 ]]; then
       if [[ ${mon} == 13 ]]; then
         ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath}  \
           report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
           --extension ${extension} --annual --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
           --upper-threshold ${thresh1} --lower-threshold ${thresh2}  \
-          >> ${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
+          >> ${logfile}
       else
         ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath}  \
           report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
           --extension ${extension} --month ${mon} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
           --upper-threshold ${thresh1} --lower-threshold ${thresh2}  \
-          >> ${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
+          >> ${logfile}
       fi #annual
     else
       if [[ ${mon} == 13 ]]; then
@@ -170,29 +187,33 @@ elif [[ ${realm} == land || ${realm} == atmosphere ]]; then
 
 
 ## for testing
-#  rcppath=/media/sf_D_DRIVE/CMIP5/data_duplicate
-#  piCpath=${rcppath}
-
+if [[ ${use_duplicate_data_fold} == 1 ]]; then
+   rcppath=/media/sf_D_DRIVE/CMIP5/data_duplicate
+   piCpath=${rcppath}
+fi
 
   files_rcp=`ls ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc 2>/dev/null | wc -w`
   files_piC=`ls ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.nc 2>/dev/null | wc -w`
   if [[ ${files_rcp} -gt 0 && ${files_piC} -gt 0 ]]; then
 
-    if [[ ${logfile} == 1 ]]; then
-      mkdir -p ${outpath}/logs/${var}
-      echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} year ${sigmaS} km, thresholds: ${thresh1} ${thresh2}" > ${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
+    rm -f ${logfile}
+
+    echo ""
+    echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} year ${sigmaS} km, thresholds: ${thresh1} ${thresh2}"
+
+    if [[ ${write_logfile} == 1 ]]; then
       if [[ ${mon} == 13 ]]; then
         ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath} \
           report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
           --annual --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km --upper-threshold ${thresh1} \
           --lower-threshold ${thresh2} --sobel-scale 1 km/year \
-          >> ${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
+          >> ${logfile}
       else
         ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath} \
           report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
           --month ${mon} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km --upper-threshold ${thresh1} \
           --lower-threshold ${thresh2} --sobel-scale 1 km/year \
-          >> ${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
+          >> ${logfile}
       fi #annual
 
 
@@ -211,8 +232,8 @@ elif [[ ${realm} == land || ${realm} == atmosphere ]]; then
 
     fi #logfile
 
-  else
-    echo "no files found"
+  #else
+   # echo "no files found"
   fi #files exist
 
 
@@ -223,22 +244,29 @@ fi #realm
 ## select figures and put in 1 figure
 
 if [[ ${files_rcp} -gt 0 && ${files_piC} -gt 0 ]]; then
-  convert \( signal.png years.png regions.png -append \) \
-  \( timeseries.png maxTgrad.png peakiness.png -append \) \
-  +append ${outpath}/figs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}.png
 
+  figfiles=0
   for type in signal years event_count regions peakiness maxTgrad timeseries; do
     if [[ -f ${type}.png ]]; then
-      mv ${type}.png ${outpath}/singlefigs/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_${type}.png 
+      figfiles=1
+      cp ${type}.png ${outpath}/singlefigs/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_${type}.png 
     fi
   done
 
-fi #rearrange plots
+  if [[ ${figfiles} == 1 ]]; then
+    convert \( signal.png years.png regions.png -append \) \
+    \( timeseries.png maxTgrad.png peakiness.png -append \) \
+    +append ${outpath}/figs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}.png
+    rm -f signal.png years.png event_count.png regions.png peakiness.png maxTgrad.png timeseries.png
+  fi
+
+
+fi #files are there, so rearrange plots
 
 
 
-else
-  echo "case done already"
+#else
+#  echo "case done already"
 
 fi # calc new
 
@@ -304,6 +332,26 @@ realm=atmosphere
 calc_new=1
 logfile=0
 
+
+### testing:
+varlist="prsn"
+monlist="10"
+modellist="ACCESS1-3"
+sigmaS=100
+sigmaT=10
+realm=atmosphere
+calc_new=1
+logfile=0
+
+varlist="gpp"
+monlist="1"
+modellist="CMCC-CESM"
+sigmaS=100
+sigmaT=10
+realm=land
+calc_new=1
+logfile=0
+use_duplicate_data_fold=1 
 
 ### testing:
 varlist="rsuscs"
