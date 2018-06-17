@@ -50,7 +50,10 @@ class Box:
     @staticmethod
     def from_netcdf(nc):
         """Obtain latitude, longitude and time axes from a given
-        NetCDF object."""
+        NetCDF object.
+
+        :param nc: NetCDF dataset.
+        """
         lat = nc.variables['lat'][:]
         lon = nc.variables['lon'][:]
         lat_bnds = nc.variables['lat_bnds'][:]
@@ -63,7 +66,10 @@ class Box:
     def generate(n_lon):
         """Generate a box without time axis, with the given number of pixels in
         the longitudinal direction. Latitudes are given half that size to
-        create a 2:1 rectangular projection."""
+        create a 2:1 rectangular projection.
+
+        :param n_lon: number of pixels in longitudinal direction.
+        """
         n_lat = n_lon // 2
         lat = np.linspace(-90.0, 90, n_lat + 1)[1:-1]
         lon = np.linspace(0., 360., n_lon, endpoint=False)

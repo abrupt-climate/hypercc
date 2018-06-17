@@ -36,6 +36,7 @@ def earth_plot(
 
 
 def plot_orthographic_np(box, value, central_latitude=90, **pargs):
+    """Create Earth plot in Orthographic projection."""
     return earth_plot(
         box, value,
         projection=ccrs.Orthographic(
@@ -45,6 +46,7 @@ def plot_orthographic_np(box, value, central_latitude=90, **pargs):
 
 
 def plot_mollweide(box, value, **pargs):
+    """Create Earth plot in Mollweide projection."""
     return earth_plot(
         box, value,
         projection=ccrs.Mollweide(),
@@ -56,6 +58,8 @@ def plot_plate_carree(box, value, **pargs):
 
 
 def plot_signal_histogram(box, signal, lower, upper, **pargs):
+    """Plot the signal histogram: this shows the evolution of the
+    Sobel signal strength over time."""
     fig = plt.figure()
     ax = fig.add_subplot(111)
 

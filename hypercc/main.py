@@ -2,6 +2,10 @@ import warnings
 import sys
 import locale
 import noodles
+import argparse
+
+from .workflow import generate_report, run
+from .units import MONTHS
 
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -21,21 +25,8 @@ def print_nlesc_logo():
           "    \033[90m╰───────────────────────────╯\033[m\n", file=sys.stderr)
 
 
-if __name__ == "__main__":
-    import argparse
-    import logging
-
-    # disable interactive plotting
-    import matplotlib
-    matplotlib.use('SVG')
-
-    from .workflow import generate_report, run
-    from .units import MONTHS
-
-    print_nlesc_logo()
-    logging.getLogger('root').setLevel(logging.WARNING)
-    logging.getLogger('noodles').setLevel(logging.WARNING)
-    logging.info("This message should show.")
+def make_argument_parser():
+    """Create the argument parser for the `hypercc` script."""
 
     parser = argparse.ArgumentParser(
         prog='hypercc',
@@ -114,6 +105,22 @@ if __name__ == "__main__":
         "--no-taper", help="taper data to handle land/sea mask.",
         dest='taper', action='store_false')
 
+    return parser
+
+
+if __name__ == "__main__":
+    import logging
+
+    # disable interactive plotting
+    import matplotlib
+    matplotlib.use('SVG')
+
+    print_nlesc_logo()
+    logging.getLogger('root').setLevel(logging.WARNING)
+    logging.getLogger('noodles').setLevel(logging.WARNING)
+    logging.info("This message should show.")
+
+    parser = make_argument_parser()
     args = parser.parse_args()
     if args.month not in MONTHS:
         args.month = MONTHS[int(args.month) - 1]
