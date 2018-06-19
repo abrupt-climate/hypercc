@@ -11,6 +11,7 @@ Welcome to HyperCanny Climate module's documentation!
    :caption: Contents:
 
    introduction
+   tutorial
    command-line
    api
 

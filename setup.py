@@ -32,6 +32,8 @@ setup(
     extras_require={
         'develop': [
             'pytest', 'coverage', 'pep8', 'tox', 'flake8',
-            'sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'sphinx-argparse'],
+            'sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'sphinx-argparse',
+            'nbsphinx'
+        ],
     },
 )

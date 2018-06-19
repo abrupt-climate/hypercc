@@ -48,19 +48,33 @@ class Box:
         return Box(**data)
 
     @staticmethod
-    def from_netcdf(nc):
+    def from_netcdf(
+            nc, lat_var='lat', lon_var='lon',
+            lat_bnds_var='lat_bnds', lon_bnds_var='lon_bnds',
+            time_var='time'):
         """Obtain latitude, longitude and time axes from a given
         NetCDF object.
 
         :param nc: NetCDF dataset.
         """
-        lat = nc.variables['lat'][:]
-        lon = nc.variables['lon'][:]
-        lat_bnds = nc.variables['lat_bnds'][:]
-        lon_bnds = nc.variables['lon_bnds'][:]
-        time = nc.variables['time'][:]
-        dt, t0 = parse_time_units(nc.variables['time'].units)
-        return Box(time, lat, lon, lat_bnds, lon_bnds, dt, t0)
+        lat = nc.variables[lat_var][:]
+        lon = nc.variables[lon_var][:]
+
+        if time_var:
+            time = nc.variables[time_var][:]
+        else:
+            time = None
+
+        box = Box(time, lat, lon)
+
+        if lat_bnds_var and lon_bnds_var:
+            box.lat_bnds = nc.variables[lat_bnds_var][:]
+            box.lon_bnds = nc.variables[lon_bnds_var][:]
+        else:
+            box.generate_bounds()
+
+        box.time_units, box.time_start = parse_time_units(nc.variables['time'].units)
+        return box
 
     @staticmethod
     def generate(n_lon):
@@ -75,6 +89,28 @@ class Box:
         lon = np.linspace(0., 360., n_lon, endpoint=False)
         time = None
         return Box(time, lat, lon)
+
+    def generate_bounds(self):
+        lat_bnds = np.zeros(shape=(len(self.lat), 2), dtype='float32')
+        if self.lat[0] > self.lat[-1]:
+            lat_bnds[0, 1] = 90.0
+            lat_bnds[1:, 1] = (self.lat[:-1] + self.lat[1:]) / 2
+            lat_bnds[:-1, 0] = (self.lat[:-1] + self.lat[1:]) / 2
+            lat_bnds[-1, 0] = -90.0
+        else:
+            lat_bnds[0, 0] = -90.0
+            lat_bnds[1:, 0] = (self.lat[:-1] + self.lat[1:]) / 2
+            lat_bnds[:-1, 1] = (self.lat[:-1] + self.lat[1:]) / 2
+            lat_bnds[-1, 1] = 90.0
+
+        lon_bnds = np.zeros(shape=(len(self.lon), 2), dtype='float32')
+        lon_bnds[:, 0] = (np.roll(self.lon, 1) + self.lon) / 2
+        lon_bnds[0, 0] -= 180
+        lon_bnds[:, 1] = (np.roll(self.lon, -1) + self.lon) / 2
+        lon_bnds[-1, 1] += 180
+
+        self.lat_bnds = lat_bnds
+        self.lon_bnds = lon_bnds
 
     def date(self, value):
         """Convert a time value to a date."""
