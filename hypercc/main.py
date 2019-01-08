@@ -142,5 +142,7 @@ if __name__ == "__main__":
 
             print("max peakiness:", results['statistics']['max_peakiness'])
             print("max maxTgrad:", results['statistics']['max_maxTgrad'])
+            print("max kurtosis:", results['statistics']['max_kurtosis'])
+            print("min FWHM:", results['statistics']['min_FWHM'])
         else:
             print(results)

@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
+from scipy.stats import kurtosis as scipykurtosis
 import noodles
 
 from hyper_canny import cp_edge_thinning, cp_double_threshold
@@ -264,17 +265,69 @@ def compute_maxTgrad(canny):
 @noodles.schedule
 @noodles.maybe
 def compute_peakiness(canny):
-    tgrad = canny['sobel'][0]/canny['sobel'][3]      # unit('1/year');
-    tgrad_residual = tgrad - np.mean(tgrad, axis=0)  # remove time mean
-    maxTgrad = np.max(abs(tgrad_residual), axis=0)   # maximum of time gradient
-    stdevdist = np.std(tgrad_residual, axis=0)       # stdev
-    maxm = canny['edges'].max(axis=0)		     # mask
-    peakiness = maxTgrad / stdevdist                 # peakines = maxdist/stdev
-    peakiness = peakiness * maxm                     # 0 where no event
-    peakiness[np.isnan(peakiness)]=0                 # can be nan when var is constant
-    indices_mask=np.where(peakiness>np.max(peakiness))  # set missing values to 0
-    peakiness[indices_mask]=0                           # otherwise they show on map
+    tgrad = canny['sobel'][0]/canny['sobel'][3]        # unit('1/year');
+    tgrad_residual = tgrad - np.mean(tgrad, axis=0)    # remove time mean
+    maxTgrad = np.max(abs(tgrad_residual), axis=0)     # maximum of abs time gradient
+    stdevdist = np.std(tgrad_residual, axis=0)         # stdev
+    maxm = canny['edges'].max(axis=0)		       # mask
+    peakiness = maxTgrad / stdevdist                   # peakines = maxdist/stdev
+    peakiness = peakiness * maxm                       # 0 where no event
+    peakiness[np.isnan(peakiness)]=0                   # can be nan when var is constant
+    indices_mask=np.where(peakiness>np.max(peakiness)) # set missing values to 0
+    peakiness[indices_mask]=0                          # otherwise they show on map
     return peakiness
+
+
+@noodles.schedule
+@noodles.maybe
+def compute_kurtosis(canny):
+    tgrad = canny['sobel'][0]/canny['sobel'][3]                # unit('1/year');
+    maxm = canny['edges'].max(axis=0)		               # mask
+    kurtosis = scipykurtosis(tgrad, axis=0, fisher=True)       # excess kurtosis of time gradient
+    kurtosis = kurtosis * maxm
+    kurtosis[np.isnan(kurtosis)]=-999                          # can be nan when var is constant
+    indices_mask1=np.where(kurtosis>np.max(kurtosis))          # set missing values to -999
+    kurtosis[indices_mask1]=-999                               # otherwise they show on map
+    indices_mask2=np.where(kurtosis<np.min(kurtosis))          
+    kurtosis[indices_mask2]=-999                                 
+    kurtosis[kurtosis==0]=-999                                 # where there are no edges, kurtosis is 0 ???
+    return kurtosis
+
+
+@noodles.schedule
+@noodles.maybe
+def compute_FWHM(canny, box):
+    frac = 2.                                             # larger number yields larger widths!
+    tgrad = canny['sobel'][0]/canny['sobel'][3]                # unit('1/year');
+    FWHM = np.mean(tgrad, axis=0)*0
+    years = np.array([dd.year for dd in box.dates])
+    for dim1 in range(tgrad.shape[1]):
+        for dim2 in range(tgrad.shape[2]):
+            tgradlocal=tgrad[:,dim1,dim2]
+            d = tgradlocal - (np.max(tgradlocal) / frac)     
+            indices = np.where(d > 0)[0]                     
+            FWHM[dim1,dim2] = abs(years[indices[-1]] - years[indices[0]])
+    maxm = canny['edges'].max(axis=0)		                 # mask
+    FWHM[maxm==0]=0
+    return FWHM
+
+
+@noodles.schedule
+@noodles.maybe
+def compute_FWHM_nozeros(box, FWHM):
+    indices_mask=np.where(FWHM==0)                             # set all zeros to max
+    years = np.array([dd.year for dd in box.dates])
+    FWHM_nozeros=FWHM
+    FWHM_nozeros[indices_mask]=np.max(years)-np.min(years)             
+    return FWHM_nozeros
+
+
+@noodles.schedule
+@noodles.maybe
+def write_map(field, filename):
+   file = open(str(filename),'w')
+   np.savetxt(file, field, delimiter=" ")
+   file.close()
 
 
 @noodles.schedule
@@ -288,6 +341,16 @@ def generate_peakiness_plot(box, peakiness, title, filename):
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
+@noodles.schedule
+@noodles.maybe
+def generate_kurtosis_plot(box, kurtosis, title, filename):
+    import matplotlib
+    my_cmap = matplotlib.cm.get_cmap('rainbow')
+    my_cmap.set_under('w')
+    fig = plot_plate_carree(box, kurtosis, cmap=my_cmap, vmin=-1)
+    fig.suptitle(title)
+    fig.savefig(str(filename), bbox_inches='tight')
+    return Path(filename)
 
 @noodles.schedule
 @noodles.maybe
@@ -303,19 +366,36 @@ def generate_maxTgrad_plot(box, maxTgrad, title, filename):
 
 @noodles.schedule
 @noodles.maybe
-def generate_timeseries_plot(box, data, maxTgrad, peakiness, title, filename):
+def generate_FWHM_plot(box, FWHM, title, filename):
     import matplotlib
-    lonind=np.argmax(np.max(peakiness, axis=0))
-    latind=np.argmax(np.max(peakiness, axis=1))
-    tspeak=data[:,latind,lonind]
-    lonind=np.argmax(np.max(maxTgrad, axis=0))
-    latind=np.argmax(np.max(maxTgrad, axis=1))
-    tsgrad=data[:,latind,lonind]
+    my_cmap = matplotlib.cm.get_cmap('rainbow')
+    my_cmap.set_under('w')
+    #years = np.array([d.year for d in box.dates])
+    #range = np.max(years) - np.min(years)
+    fig = plot_plate_carree(box, FWHM, cmap=my_cmap, vmin=1)
+    fig.suptitle(title)
+    fig.savefig(str(filename), bbox_inches='tight')
+    return Path(filename)
+
+@noodles.schedule
+@noodles.maybe
+def generate_timeseries_plot(box, data, field1, field2, field3, title, filename):
+    import matplotlib
+    lonind=np.argmax(np.max(field1, axis=0))
+    latind=np.argmax(np.max(field1, axis=1))
+    ts1=data[:,latind,lonind]
+    lonind=np.argmax(np.max(field2, axis=0))
+    latind=np.argmax(np.max(field2, axis=1))
+    ts2=data[:,latind,lonind]
+    #lonind=np.argmax(np.max(field3, axis=0))
+    #latind=np.argmax(np.max(field3, axis=1))
+    lonind=np.argmin(np.min(field3, axis=0))
+    latind=np.argmin(np.min(field3, axis=1))
+    ts3=data[:,latind,lonind]
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.plot(box.dates, tspeak, 'k', box.dates, tsgrad, 'r')
+    ax.plot(box.dates, ts1, 'k', box.dates, ts2, 'r:', box.dates, ts3, 'b--')
     fig.suptitle(title)
-    #fig.legend('ts with largest peakiness','ts with largest time gradient', 'Location','Best')
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
@@ -384,9 +464,12 @@ def generate_event_count_plot(box, mask, title, filename):
 @noodles.schedule(call_by_ref=['data_set', 'canny_edges'])
 @noodles.maybe
 def make_report(config, data_set, calibration, canny_edges):
-    maxTgrad = compute_maxTgrad(canny_edges)
-    peakiness = compute_peakiness(canny_edges)
-    output_path = Path(config.output_folder)
+    maxTgrad     = compute_maxTgrad(canny_edges)
+    peakiness    = compute_peakiness(canny_edges)
+    kurtosis     = compute_kurtosis(canny_edges)
+    FWHM         = compute_FWHM(canny_edges, data_set.box)
+    FWHM_nozeros = compute_FWHM_nozeros(data_set.box, FWHM)
+    output_path  = Path(config.output_folder)
 
     signal_plot = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",
@@ -403,18 +486,31 @@ def make_report(config, data_set, calibration, canny_edges):
     peakiness_plot = generate_peakiness_plot(
         data_set.box, peakiness,
         "peakiness", output_path / "peakiness.png")
+    FWHM_plot = generate_FWHM_plot(
+        data_set.box, FWHM,
+        "Full width half max. of time gradient", output_path / "FWHM.png")
     maxTgrad_plot = generate_maxTgrad_plot(
         data_set.box, maxTgrad,
         "max. time gradient", output_path / "maxTgrad.png")
+    kurtosis_plot = generate_kurtosis_plot(
+        data_set.box, kurtosis,
+        "kurtosis", output_path / "kurtosis.png")
     timeseries_plot = generate_timeseries_plot(
-        data_set.box, data_set.data, maxTgrad, peakiness, "timeseries",
+        data_set.box, data_set.data, maxTgrad, peakiness, FWHM_nozeros, "ts at loc of max maxTgrad, peakiness, min FWHM",
         output_path / "timeseries.png")
-
+    peakiness_out     = write_map(peakiness, output_path / "peakiness.txt")
+    maxTgrad_out      = write_map(maxTgrad, output_path / "maxTgrad.txt")
+    kurtosis_out      = write_map(kurtosis, output_path / "kurtosis.txt")
+    FWHM_out          = write_map(FWHM, output_path / "FWHM.txt")
+    #FWHM_nozeros_out  = write_map(FWHM_nozeros, output_path / "FWHM_nozeros.txt")
+    
     return noodles.lift({
         'calibration': calibration,
         'statistics': {
             'max_peakiness': peakiness.max(),
-            'max_maxTgrad': maxTgrad.max()
+            'max_maxTgrad': maxTgrad.max(),
+	    'max_kurtosis': kurtosis.max(),
+	    'min_FWHM': FWHM_nozeros.min()
         },
         'signal_plot': signal_plot,
         'region_plot': region_plot,
@@ -422,7 +518,14 @@ def make_report(config, data_set, calibration, canny_edges):
         'event_count_plot': event_count_plot,
         'peakiness_plot': peakiness_plot,
         'maxTgrad_plot': maxTgrad_plot,
-        'timeseries_plot': timeseries_plot
+	'kurtosis_plot': kurtosis_plot,
+	'FWHM_plot': FWHM_plot,
+        'timeseries_plot': timeseries_plot,
+        'peakiness_out': peakiness_out,
+        'maxTgrad_out': maxTgrad_out,
+	'kurtosis_out': kurtosis_out,
+        'FWHM_out': FWHM_out,
+	#'FWHM_nozeros_out': FWHM_nozeros_out
     })
 
 
