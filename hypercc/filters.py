@@ -165,7 +165,7 @@ def taper_masked_area(data, size, n_steps):
         raise TypeError("Expected a masked array.")
 
     if data.mask is np.ma.nomask:
-        print("Mask is empty, not doing anything.", file=sys.stderr)
+        print("Land-sea mask is empty. No smoothing at coasts is needed.", file=sys.stderr)
 
     data.data[data.mask] = 0.0
     for _ in range(n_steps):

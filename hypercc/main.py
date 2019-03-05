@@ -139,10 +139,9 @@ if __name__ == "__main__":
                     print("Result {} failed: {}".format(name, result))
                     print("==========================================")
                     print()
-
-            print("max peakiness:", results['statistics']['max_peakiness'])
             print("max maxTgrad:", results['statistics']['max_maxTgrad'])
-            print("max kurtosis:", results['statistics']['max_kurtosis'])
-            print("min FWHM:", results['statistics']['min_FWHM'])
+            print("max abruptness:", results['statistics']['max_abruptness'])
+
+
         else:
             print(results)

@@ -81,7 +81,6 @@ def annual_mean(data_set):
     return data_set.annual_mean()
 
 
-#@noodles.schedule(store=False, call_by_ref=['data_set'])  #Sebastian: use no cache
 @noodles.schedule(call_by_ref=['data_set'])
 def compute_calibration(config, data_set):
     quartile = ['min', '1st', 'median', '3rd', 'max'] \
@@ -116,8 +115,8 @@ def get_calibration_factor(config, calibration):
     quartile = ['min', '1st', 'median', '3rd', 'max'] \
         .index(config.calibration_quartile)
     gamma = calibration['gamma'][quartile]
-    print("Calibration gamma[{}] = {}"
-          .format(config.calibration_quartile, gamma))
+    #print("Calibration gamma[{}] = {}"
+    #      .format(config.calibration_quartile, gamma))
     return gamma
 
 
@@ -225,12 +224,9 @@ def compute_canny_edges(config, data_set, calibration):
     sobel_data = sobel_filter(box, smooth_data, weight=weights)
 
     max_signal_value = 1 / sobel_data[-1].min()
-#    max_cal = calibration['magnitude'][4]         ## Sebastian, 16 May 2018: use upper threshold!
-#    print("maximum signal in control:", max_cal)
     lower, upper = get_thresholds(config, calibration)
     print("maximum signal in control:", upper)
     print("maximum signal in data:", max_signal_value)
-#    if max_signal_value < max_cal:
     if max_signal_value < upper:
         raise ValueError("Maximum signal below calibration limit, no need to continue.");
 
@@ -264,62 +260,65 @@ def compute_maxTgrad(canny):
 
 @noodles.schedule
 @noodles.maybe
-def compute_peakiness(canny):
-    tgrad = canny['sobel'][0]/canny['sobel'][3]        # unit('1/year');
-    tgrad_residual = tgrad - np.mean(tgrad, axis=0)    # remove time mean
-    maxTgrad = np.max(abs(tgrad_residual), axis=0)     # maximum of abs time gradient
-    stdevdist = np.std(tgrad_residual, axis=0)         # stdev
-    maxm = canny['edges'].max(axis=0)		       # mask
-    peakiness = maxTgrad / stdevdist                   # peakines = maxdist/stdev
-    peakiness = peakiness * maxm                       # 0 where no event
-    peakiness[np.isnan(peakiness)]=0                   # can be nan when var is constant
-    indices_mask=np.where(peakiness>np.max(peakiness)) # set missing values to 0
-    peakiness[indices_mask]=0                          # otherwise they show on map
-    return peakiness
+def compute_measure15(mask, years, data, cutoff_length, chunk_max_length, chunk_min_length):
+    from scipy import stats
+    
+    idx = np.where(mask)
+    indices=np.asarray(idx)
+    measure15_3d=mask*0.0
 
+    shapeidx=np.shape(idx)
+    nofresults=shapeidx[1]
 
-@noodles.schedule
-@noodles.maybe
-def compute_kurtosis(canny):
-    tgrad = canny['sobel'][0]/canny['sobel'][3]                # unit('1/year');
-    maxm = canny['edges'].max(axis=0)		               # mask
-    kurtosis = scipykurtosis(tgrad, axis=0, fisher=True)       # excess kurtosis of time gradient
-    kurtosis = kurtosis * maxm
-    kurtosis[np.isnan(kurtosis)]=-999                          # can be nan when var is constant
-    indices_mask1=np.where(kurtosis>np.max(kurtosis))          # set missing values to -999
-    kurtosis[indices_mask1]=-999                               # otherwise they show on map
-    indices_mask2=np.where(kurtosis<np.min(kurtosis))          
-    kurtosis[indices_mask2]=-999                                 
-    kurtosis[kurtosis==0]=-999                                 # where there are no edges, kurtosis is 0 ???
-    return kurtosis
+    #years = np.array([dd.year for dd in box.dates])
 
-
-@noodles.schedule
-@noodles.maybe
-def compute_FWHM(canny, box):
-    frac = 2.                                             # larger number yields larger widths!
-    tgrad = canny['sobel'][0]/canny['sobel'][3]                # unit('1/year');
-    FWHM = np.mean(tgrad, axis=0)*0
-    years = np.array([dd.year for dd in box.dates])
-    for dim1 in range(tgrad.shape[1]):
-        for dim2 in range(tgrad.shape[2]):
-            tgradlocal=tgrad[:,dim1,dim2]
-            d = tgradlocal - (np.max(tgradlocal) / frac)     
-            indices = np.where(d > 0)[0]                     
-            FWHM[dim1,dim2] = abs(years[indices[-1]] - years[indices[0]])
-    maxm = canny['edges'].max(axis=0)		                 # mask
-    FWHM[maxm==0]=0
-    return FWHM
-
-
-@noodles.schedule
-@noodles.maybe
-def compute_FWHM_nozeros(box, FWHM):
-    indices_mask=np.where(FWHM==0)                             # set all zeros to max
-    years = np.array([dd.year for dd in box.dates])
-    FWHM_nozeros=FWHM
-    FWHM_nozeros[indices_mask]=np.max(years)-np.min(years)             
-    return FWHM_nozeros
+    for result in range(nofresults):
+        [dim0,dim1,dim2]=indices[:,result]
+    
+        if mask[dim0, dim1, dim2] == 1:
+            index=dim0
+            chunk1_data=data[0:index-cutoff_length+2,dim1,dim2]
+            chunk2_data=data[index+cutoff_length:,dim1,dim2]
+            chunk1_years=years[0:index-cutoff_length+2]
+            chunk2_years=years[index+cutoff_length:]
+                
+            if np.size(chunk1_data) > chunk_max_length-1:
+                chunk1_start=-chunk_max_length-1
+            else:
+                chunk1_start=-np.size(chunk1_data)-1
+            if np.size(chunk2_data) > chunk_max_length-1:
+                chunk2_end=chunk_max_length
+            else:
+                chunk2_end=np.size(chunk2_data)
+            
+            chunk1_data_short=chunk1_data[chunk1_start:-1]
+            chunk2_data_short=chunk2_data[0:chunk2_end]
+            N1=np.size(chunk1_data_short)
+            N2=np.size(chunk2_data_short)
+                    
+            if not ((N1 < chunk_min_length) or (N2 < chunk_min_length)):
+                chunk1_years_short=chunk1_years[chunk1_start:-1]-years[dim0]
+                chunk2_years_short=chunk2_years[0:chunk2_end]-years[dim0]
+            
+                slope_chunk1, intercept_chunk1, r_value, p_value, std_err = stats.linregress(chunk1_years_short, chunk1_data_short)
+                chunk1_regline=intercept_chunk1 + slope_chunk1*chunk1_years_short
+                
+                slope_chunk2, intercept_chunk2, r_value, p_value, std_err = stats.linregress(chunk2_years_short, chunk2_data_short)
+                chunk2_regline=intercept_chunk2 + slope_chunk2*chunk2_years_short
+                
+                chunk1_residuals=chunk1_data_short - (intercept_chunk1 + slope_chunk1*chunk1_years_short)
+                chunk2_residuals=chunk2_data_short - (intercept_chunk2 + slope_chunk2*chunk2_years_short)
+    
+                mean_std=(np.nanstd(chunk1_residuals)+np.nanstd(chunk2_residuals))/2
+                measure15_3d[dim0,dim1,dim2]=abs(intercept_chunk1-intercept_chunk2)/mean_std
+    measure15=np.max(measure15_3d,axis=0)
+    measure15[np.isnan(measure15)]=0                    
+    indices_mask=np.where(measure15>np.max(measure15))  # set missing values to 0
+    measure15[indices_mask]=0                           # otherwise they show on map
+    return {
+	'measure15_3d': measure15_3d,
+	'measure15':    measure15
+    }
 
 
 @noodles.schedule
@@ -332,72 +331,37 @@ def write_map(field, filename):
 
 @noodles.schedule
 @noodles.maybe
-def generate_peakiness_plot(box, peakiness, title, filename):
+def generate_abruptness_plot(box, abruptness, title, filename):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
     my_cmap.set_under('w')
-    fig = plot_plate_carree(box, peakiness, cmap=my_cmap, vmin=1e-30)
+    if np.max(abs(abruptness)) > 0:
+        fig = plot_plate_carree(box, abruptness, cmap=my_cmap, vmin=1e-30)
+    else:
+        fig = plot_plate_carree(box, abruptness, cmap=my_cmap, vmin=-1e-30, vmax=1e-30)
     fig.suptitle(title)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
-@noodles.schedule
-@noodles.maybe
-def generate_kurtosis_plot(box, kurtosis, title, filename):
-    import matplotlib
-    my_cmap = matplotlib.cm.get_cmap('rainbow')
-    my_cmap.set_under('w')
-    fig = plot_plate_carree(box, kurtosis, cmap=my_cmap, vmin=-1)
-    fig.suptitle(title)
-    fig.savefig(str(filename), bbox_inches='tight')
-    return Path(filename)
-
-@noodles.schedule
-@noodles.maybe
-def generate_maxTgrad_plot(box, maxTgrad, title, filename):
-    import matplotlib
-    my_cmap = matplotlib.cm.get_cmap('rainbow')
-    my_cmap.set_under('w')
-    fig = plot_plate_carree(box, maxTgrad, cmap=my_cmap, vmin=1e-30)
-    fig.suptitle(title)
-    fig.savefig(str(filename), bbox_inches='tight')
-    return Path(filename)
 
 
 @noodles.schedule
 @noodles.maybe
-def generate_FWHM_plot(box, FWHM, title, filename):
+def generate_timeseries_plot(config, box, data, field1, title, filename):
     import matplotlib
-    my_cmap = matplotlib.cm.get_cmap('rainbow')
-    my_cmap.set_under('w')
-    #years = np.array([d.year for d in box.dates])
-    #range = np.max(years) - np.min(years)
-    fig = plot_plate_carree(box, FWHM, cmap=my_cmap, vmin=1)
-    fig.suptitle(title)
-    fig.savefig(str(filename), bbox_inches='tight')
-    return Path(filename)
-
-@noodles.schedule
-@noodles.maybe
-def generate_timeseries_plot(box, data, field1, field2, field3, title, filename):
-    import matplotlib
-    lonind=np.argmax(np.max(field1, axis=0))
-    latind=np.argmax(np.max(field1, axis=1))
-    ts1=data[:,latind,lonind]
-    lonind=np.argmax(np.max(field2, axis=0))
-    latind=np.argmax(np.max(field2, axis=1))
-    ts2=data[:,latind,lonind]
-    #lonind=np.argmax(np.max(field3, axis=0))
-    #latind=np.argmax(np.max(field3, axis=1))
-    lonind=np.argmin(np.min(field3, axis=0))
-    latind=np.argmin(np.min(field3, axis=1))
-    ts3=data[:,latind,lonind]
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(box.dates, ts1, 'k', box.dates, ts2, 'r:', box.dates, ts3, 'b--')
-    fig.suptitle(title)
-    fig.savefig(str(filename), bbox_inches='tight')
-    return Path(filename)
+    sigma_t, sigma_x = get_sigmas(config)
+    if np.max(abs(field1)) > 0: 
+        lonind=np.nanargmax(np.nanmax(field1, axis=0))
+        latind=np.nanargmax(np.nanmax(field1, axis=1))
+        ts1=data[:,latind,lonind]
+        fig = plt.figure()
+        ax=plt.subplot(111)
+        ax.plot(box.dates, ts1, 'k')
+        fig.suptitle(title)
+        ax.set_xlabel('year')
+        ax.set_ylabel('data')
+        fig.savefig(str(filename), bbox_inches='tight')
+        return Path(filename)
 
 
 @noodles.schedule
@@ -433,18 +397,91 @@ def generate_region_plot(box, mask, title, filename, min_size=0):
     	return Path(filename)
 
 
-@noodles.schedule
+
+@noodles.schedule(store=False,call_by_ref=['mask'])
 @noodles.maybe
-def generate_year_plot(box, mask, title, filename):
+def generate_scatter_plot(mask,sb,colourdata,sizedata,colourbarlabel,gamma,lower_threshold,upper_threshold,title,filename):
+
+    ### obtain location of edges in space and time, the magnitude of the gradients and their abruptness
+    ## arrays with data from the points with edges (mask==1)
+    idx    = np.where(mask)
+    sizdata  = sizedata[idx[0], idx[1], idx[2]]
+    coldata  = colourdata[idx[0], idx[1], idx[2]]
+    sobel  = sb[:, idx[0], idx[1], idx[2]]
+    sgrad = np.sqrt(sobel[1]**2 + sobel[2]**2) / gamma
+    sgrad = sgrad/sobel[3]*1000    # scale to 1000 km
+    tgrad = sobel[0]/sobel[3]*10      # scale to 10 years
+    
+    #### sort the input in order to show most abrupt ones on top of the others in scatter plot
+    inds = np.argsort(coldata)
+    
+    ######## plot
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
     my_cmap.set_under('w')
-    years = np.array([d.year for d in box.dates])
-    data = (years[:, None, None] * mask).max(axis=0)
+    fig = plt.figure()
+    ax=plt.subplot(111)
+    
+    #### ellipses showing the threshold values of hysteresis thresholding
+    dp = np.linspace(-np.pi/2, np.pi/2, 100)
+    dt = upper_threshold * np.sin(dp) * 10
+    dx = upper_threshold * np.cos(dp) * 10 / gamma*1000
+    
+    # ellipse showing the aspect ratio. for scaling_factor=1 would be a circle
+    # the radius of that circle is the upper threshold
+    plt.plot(dx, dt, c='k')
+    
+    ## ellipse based on the lower threshold:
+    dt = lower_threshold * np.sin(dp) * 10
+    dx = lower_threshold * np.cos(dp) * 10 / gamma*1000
+    plt.plot(dx, dt, c='k')
+    
+    #data
+    plt.scatter(sgrad[inds], tgrad[inds],s=sizdata[inds]**2,c=coldata[inds], marker = 'o', cmap =my_cmap );
+    cbar=plt.colorbar()
+    cbar.set_label(colourbarlabel)
+    #matplotlib.rcParams.update({'font.size': 40})
+    ax.set_xlabel('1 K / 1000 km')
+    ax.set_ylabel('1 K / decade')
+    matplotlib.rc('xtick', labelsize=20) 
+    matplotlib.rc('ytick', labelsize=20)
+    
+    #### set axis ranges
+    border=0.05
+    Smin=np.min(sgrad)-(np.max(sgrad)-np.min(sgrad))*border
+    Smax=np.max(sgrad)+(np.max(sgrad)-np.min(sgrad))*border
+    Tmin=np.min(tgrad)-(np.max(tgrad)-np.min(tgrad))*border
+    Tmax=np.max(tgrad)+(np.max(tgrad)-np.min(tgrad))*border
+    ax.set_xlim(Smin, Smax)
+    ax.set_ylim(Tmin, Tmax)
+    
+    fig.suptitle(title)
+    fig.savefig(str(filename), bbox_inches='tight')
+    return Path(filename)
+
+
+
+@noodles.schedule
+@noodles.maybe
+def generate_year_plot(box, mask, abruptness3d, abruptness, title, filename):
+    import matplotlib
+    my_cmap = matplotlib.cm.get_cmap('rainbow')
+    my_cmap.set_under('w')
+    idx=np.where(mask)
+    indices=np.asarray(idx)
+    mask_max=mask*0
+    shapeidx=np.shape(idx)
+    nofresults=shapeidx[1]
+    for result in range(nofresults):
+        [dim0,dim1,dim2]=indices[:,result]
+        if (abruptness3d[dim0, dim1, dim2] == abruptness[dim1,dim2]) and abruptness[dim1,dim2] > 0:
+            mask_max[dim0, dim1, dim2] = 1
+    years = np.array([dd.year for dd in box.dates])
+    years_maxpeak=(years[:,None,None]*mask_max).sum(axis=0)
+    maxval = np.max(years_maxpeak)
+    minval = np.min(years_maxpeak[np.nonzero(years_maxpeak)])
     fig = plot_plate_carree(
-        box, data, cmap=my_cmap, vmin=years[0], vmax=years[-1])
-#    fig = plot_plate_carree(
-       # box, data, cmap='YlGnBu', vmin=years[0], vmax=years[-1])
+        box, years_maxpeak, cmap=my_cmap, vmin=minval, vmax=maxval)
     fig.suptitle(title)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
@@ -454,95 +491,103 @@ def generate_year_plot(box, mask, title, filename):
 @noodles.maybe
 def generate_event_count_plot(box, mask, title, filename):
     fig = plt.figure()
-    ax = fig.add_subplot(111)
+    ax=plt.subplot(111)
     ax.plot(box.dates, mask.sum(axis=1).sum(axis=1))
-    fig.suptitle(title)
+    #fig.suptitle(title)
+    ax.set_title(title)
+    ax.set_xlabel('year')
+    ax.set_ylabel('events')
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
 
 @noodles.schedule(call_by_ref=['data_set', 'canny_edges'])
 @noodles.maybe
-def make_report(config, data_set, calibration, canny_edges):
-    maxTgrad     = compute_maxTgrad(canny_edges)
-    peakiness    = compute_peakiness(canny_edges)
-    kurtosis     = compute_kurtosis(canny_edges)
-    FWHM         = compute_FWHM(canny_edges, data_set.box)
-    FWHM_nozeros = compute_FWHM_nozeros(data_set.box, FWHM)
+def make_report(config, data_set, calibration, canny_edges):    
+    gamma = get_calibration_factor(config, calibration)
+    scaling_factor = gamma * unit('1 km/year')
+    years = np.array([dd.year for dd in data_set.box.dates])
+    mask=canny_edges['edges']
+    lower_threshold, upper_threshold = get_thresholds(config, calibration)
+    years3d=years[:,None,None]*mask 
+    lats=data_set.box.lat
+    lats3d=lats[None,:,None]*mask
+    lons=data_set.box.lon
+    lons3d=lons[None,None,:]*mask
+    maxTgrad      = compute_maxTgrad(canny_edges)
+    ## abruptness
+    measures      = compute_measure15(mask, years, data_set.data, 2, 30, 15)
+    abruptness_3d = measures['measure15_3d']
+    abruptness    = measures['measure15']
     output_path  = Path(config.output_folder)
-
-    signal_plot = generate_signal_plot(
+    signal_plot  = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",
         output_path / "signal.png")
-    region_plot = generate_region_plot(
+    region_plot  = generate_region_plot(
         data_set.box, canny_edges['edges'], "regions",
         output_path / "regions.png")
-    year_plot = generate_year_plot(
-        data_set.box, canny_edges['edges'], "years",
+    year_plot    = generate_year_plot(
+        data_set.box, canny_edges['edges'], abruptness_3d, abruptness, "year of largest abruptness",
         output_path / "years.png")
     event_count_plot = generate_event_count_plot(
         data_set.box, canny_edges['edges'], "event count",
         output_path / "event_count.png")
-    peakiness_plot = generate_peakiness_plot(
-        data_set.box, peakiness,
-        "peakiness", output_path / "peakiness.png")
-    FWHM_plot = generate_FWHM_plot(
-        data_set.box, FWHM,
-        "Full width half max. of time gradient", output_path / "FWHM.png")
-    maxTgrad_plot = generate_maxTgrad_plot(
+    abruptness_plot  = generate_abruptness_plot(
+        data_set.box, abruptness,
+        "abruptness", output_path / "abruptness.png")
+    maxTgrad_plot    = generate_abruptness_plot(
         data_set.box, maxTgrad,
         "max. time gradient", output_path / "maxTgrad.png")
-    kurtosis_plot = generate_kurtosis_plot(
-        data_set.box, kurtosis,
-        "kurtosis", output_path / "kurtosis.png")
     timeseries_plot = generate_timeseries_plot(
-        data_set.box, data_set.data, maxTgrad, peakiness, FWHM_nozeros, "ts at loc of max maxTgrad, peakiness, min FWHM",
+        config, data_set.box, data_set.data, abruptness, "data at grid cell with largest abruptness",
         output_path / "timeseries.png")
-    peakiness_out     = write_map(peakiness, output_path / "peakiness.txt")
-    maxTgrad_out      = write_map(maxTgrad, output_path / "maxTgrad.txt")
-    kurtosis_out      = write_map(kurtosis, output_path / "kurtosis.txt")
-    FWHM_out          = write_map(FWHM, output_path / "FWHM.txt")
-    #FWHM_nozeros_out  = write_map(FWHM_nozeros, output_path / "FWHM_nozeros.txt")
-    
+    scatter_plot_abrupt=generate_scatter_plot(
+        mask,canny_edges['sobel'],abruptness_3d,abruptness_3d,"abruptness",gamma,lower_threshold,
+        upper_threshold,"space versus time gradients", output_path / "scatter_abruptness.png")
+    scatter_plot_years=generate_scatter_plot(
+        mask,canny_edges['sobel'],years3d,abruptness_3d,"year",gamma,lower_threshold,
+        upper_threshold,"space versus time gradients",output_path / "scatter_year.png")
+    scatter_plot_lats=generate_scatter_plot(
+        mask,canny_edges['sobel'],lats3d,abruptness_3d,"latitude",gamma,lower_threshold,
+        upper_threshold,"space versus time gradients",output_path / "scatter_latitude.png")
+    scatter_plot_lons=generate_scatter_plot(
+        mask,canny_edges['sobel'],lons3d,abruptness_3d,"longitude",gamma,lower_threshold,
+        upper_threshold,"space versus time gradients",output_path / "scatter_longitude.png")
+    maxTgrad_out        = write_map(maxTgrad, output_path / "maxTgrad.txt")
+    abruptness_out      = write_map(abruptness, output_path / "abruptness.txt")
     return noodles.lift({
         'calibration': calibration,
         'statistics': {
-            'max_peakiness': peakiness.max(),
             'max_maxTgrad': maxTgrad.max(),
-	    'max_kurtosis': kurtosis.max(),
-	    'min_FWHM': FWHM_nozeros.min()
+            'max_abruptness': abruptness.max()
         },
         'signal_plot': signal_plot,
         'region_plot': region_plot,
         'year_plot': year_plot,
         'event_count_plot': event_count_plot,
-        'peakiness_plot': peakiness_plot,
         'maxTgrad_plot': maxTgrad_plot,
-	'kurtosis_plot': kurtosis_plot,
-	'FWHM_plot': FWHM_plot,
+        'abruptness_plot': abruptness_plot,
         'timeseries_plot': timeseries_plot,
-        'peakiness_out': peakiness_out,
+        'scatter_plot_abrupt': scatter_plot_abrupt,
+        'scatter_plot_years': scatter_plot_years,
+        'scatter_plot_lats': scatter_plot_lats,
+        'scatter_plot_lons': scatter_plot_lons,
         'maxTgrad_out': maxTgrad_out,
-	'kurtosis_out': kurtosis_out,
-        'FWHM_out': FWHM_out,
-	#'FWHM_nozeros_out': FWHM_nozeros_out
+        'abruptness_out': abruptness_out	
     })
 
 
 def generate_report(config):
     output_path = Path(config.output_folder)
     output_path.mkdir(parents=True, exist_ok=True)
-
     data_set = open_data_files(config)
     control_set = open_pi_control(config)
-
     if config.annual:
         data_set = annual_mean(data_set)
         control_set = annual_mean(control_set)
     else:
         data_set = select_month(config, data_set)
         control_set = select_month(config, control_set)
-
     calibration = compute_calibration(config, control_set)
     canny_edges = compute_canny_edges(config, data_set, calibration)
     return make_report(config, data_set, calibration, canny_edges)
