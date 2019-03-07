@@ -4,7 +4,7 @@ import locale
 import noodles
 import argparse
 
-from .workflow import generate_report, run
+from .workflow import generate_report, run, run_single
 from .units import MONTHS
 
 
@@ -42,6 +42,11 @@ def make_argument_parser():
         "--output-folder", help="folder where to put output of script "
         "(default: %(default)s)",
         default='.', dest='output_folder')
+
+    parser.add_argument(
+        "--single", help="force running in single threaded mode",
+        dest="single", action="store_true")
+
     subparser = parser.add_subparsers(
         help="command to run", dest='command')
 
@@ -127,7 +132,10 @@ if __name__ == "__main__":
 
     if args.command == 'report':
         workflow = args.func(args)
-        results = run(workflow)
+        if args.single:
+            results = run_single(workflow)
+        else:
+            results = run(workflow)
 
         if results:
             print(results['calibration'])

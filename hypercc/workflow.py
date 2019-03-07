@@ -32,6 +32,15 @@ def run(workflow, db_file='hypercc-cache.db'):
         echo_log=False)
 
 
+def run_single(workflow, db_file='hypercc-cache.db'):
+    from noodles.run.single.sqlite3 import run_single
+    from .serialisers import registry
+    return run_single(
+        workflow, registry=registry,
+        db_file=db_file, always_cache=False,
+        echo_log=True)
+
+
 def open_data_files(config):
     """Open data files from the settings given in `config`.
 
@@ -262,7 +271,7 @@ def compute_maxTgrad(canny):
 @noodles.maybe
 def compute_measure15(mask, years, data, cutoff_length, chunk_max_length, chunk_min_length):
     from scipy import stats
-    
+
     idx = np.where(mask)
     indices=np.asarray(idx)
     measure15_3d=mask*0.0
@@ -274,14 +283,14 @@ def compute_measure15(mask, years, data, cutoff_length, chunk_max_length, chunk_
 
     for result in range(nofresults):
         [dim0,dim1,dim2]=indices[:,result]
-    
+
         if mask[dim0, dim1, dim2] == 1:
             index=dim0
             chunk1_data=data[0:index-cutoff_length+2,dim1,dim2]
             chunk2_data=data[index+cutoff_length:,dim1,dim2]
             chunk1_years=years[0:index-cutoff_length+2]
             chunk2_years=years[index+cutoff_length:]
-                
+
             if np.size(chunk1_data) > chunk_max_length-1:
                 chunk1_start=-chunk_max_length-1
             else:
@@ -290,29 +299,29 @@ def compute_measure15(mask, years, data, cutoff_length, chunk_max_length, chunk_
                 chunk2_end=chunk_max_length
             else:
                 chunk2_end=np.size(chunk2_data)
-            
+
             chunk1_data_short=chunk1_data[chunk1_start:-1]
             chunk2_data_short=chunk2_data[0:chunk2_end]
             N1=np.size(chunk1_data_short)
             N2=np.size(chunk2_data_short)
-                    
+
             if not ((N1 < chunk_min_length) or (N2 < chunk_min_length)):
                 chunk1_years_short=chunk1_years[chunk1_start:-1]-years[dim0]
                 chunk2_years_short=chunk2_years[0:chunk2_end]-years[dim0]
-            
+
                 slope_chunk1, intercept_chunk1, r_value, p_value, std_err = stats.linregress(chunk1_years_short, chunk1_data_short)
                 chunk1_regline=intercept_chunk1 + slope_chunk1*chunk1_years_short
-                
+
                 slope_chunk2, intercept_chunk2, r_value, p_value, std_err = stats.linregress(chunk2_years_short, chunk2_data_short)
                 chunk2_regline=intercept_chunk2 + slope_chunk2*chunk2_years_short
-                
+
                 chunk1_residuals=chunk1_data_short - (intercept_chunk1 + slope_chunk1*chunk1_years_short)
                 chunk2_residuals=chunk2_data_short - (intercept_chunk2 + slope_chunk2*chunk2_years_short)
-    
+
                 mean_std=(np.nanstd(chunk1_residuals)+np.nanstd(chunk2_residuals))/2
                 measure15_3d[dim0,dim1,dim2]=abs(intercept_chunk1-intercept_chunk2)/mean_std
     measure15=np.max(measure15_3d,axis=0)
-    measure15[np.isnan(measure15)]=0                    
+    measure15[np.isnan(measure15)]=0
     indices_mask=np.where(measure15>np.max(measure15))  # set missing values to 0
     measure15[indices_mask]=0                           # otherwise they show on map
     return {
@@ -350,7 +359,7 @@ def generate_abruptness_plot(box, abruptness, title, filename):
 def generate_timeseries_plot(config, box, data, field1, title, filename):
     import matplotlib
     sigma_t, sigma_x = get_sigmas(config)
-    if np.max(abs(field1)) > 0: 
+    if np.max(abs(field1)) > 0:
         lonind=np.nanargmax(np.nanmax(field1, axis=0))
         latind=np.nanargmax(np.nanmax(field1, axis=1))
         ts1=data[:,latind,lonind]
@@ -411,31 +420,31 @@ def generate_scatter_plot(mask,sb,colourdata,sizedata,colourbarlabel,gamma,lower
     sgrad = np.sqrt(sobel[1]**2 + sobel[2]**2) / gamma
     sgrad = sgrad/sobel[3]*1000    # scale to 1000 km
     tgrad = sobel[0]/sobel[3]*10      # scale to 10 years
-    
+
     #### sort the input in order to show most abrupt ones on top of the others in scatter plot
     inds = np.argsort(coldata)
-    
+
     ######## plot
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
     my_cmap.set_under('w')
     fig = plt.figure()
     ax=plt.subplot(111)
-    
+
     #### ellipses showing the threshold values of hysteresis thresholding
     dp = np.linspace(-np.pi/2, np.pi/2, 100)
     dt = upper_threshold * np.sin(dp) * 10
     dx = upper_threshold * np.cos(dp) * 10 / gamma*1000
-    
+
     # ellipse showing the aspect ratio. for scaling_factor=1 would be a circle
     # the radius of that circle is the upper threshold
     plt.plot(dx, dt, c='k')
-    
+
     ## ellipse based on the lower threshold:
     dt = lower_threshold * np.sin(dp) * 10
     dx = lower_threshold * np.cos(dp) * 10 / gamma*1000
     plt.plot(dx, dt, c='k')
-    
+
     #data
     plt.scatter(sgrad[inds], tgrad[inds],s=sizdata[inds]**2,c=coldata[inds], marker = 'o', cmap =my_cmap );
     cbar=plt.colorbar()
@@ -443,9 +452,9 @@ def generate_scatter_plot(mask,sb,colourdata,sizedata,colourbarlabel,gamma,lower
     #matplotlib.rcParams.update({'font.size': 40})
     ax.set_xlabel('1 K / 1000 km')
     ax.set_ylabel('1 K / decade')
-    matplotlib.rc('xtick', labelsize=20) 
+    matplotlib.rc('xtick', labelsize=20)
     matplotlib.rc('ytick', labelsize=20)
-    
+
     #### set axis ranges
     border=0.05
     Smin=np.min(sgrad)-(np.max(sgrad)-np.min(sgrad))*border
@@ -454,7 +463,7 @@ def generate_scatter_plot(mask,sb,colourdata,sizedata,colourbarlabel,gamma,lower
     Tmax=np.max(tgrad)+(np.max(tgrad)-np.min(tgrad))*border
     ax.set_xlim(Smin, Smax)
     ax.set_ylim(Tmin, Tmax)
-    
+
     fig.suptitle(title)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
@@ -503,13 +512,13 @@ def generate_event_count_plot(box, mask, title, filename):
 
 @noodles.schedule(call_by_ref=['data_set', 'canny_edges'])
 @noodles.maybe
-def make_report(config, data_set, calibration, canny_edges):    
+def make_report(config, data_set, calibration, canny_edges):
     gamma = get_calibration_factor(config, calibration)
     scaling_factor = gamma * unit('1 km/year')
     years = np.array([dd.year for dd in data_set.box.dates])
     mask=canny_edges['edges']
     lower_threshold, upper_threshold = get_thresholds(config, calibration)
-    years3d=years[:,None,None]*mask 
+    years3d=years[:,None,None]*mask
     lats=data_set.box.lat
     lats3d=lats[None,:,None]*mask
     lons=data_set.box.lon
@@ -573,7 +582,7 @@ def make_report(config, data_set, calibration, canny_edges):
         'scatter_plot_lats': scatter_plot_lats,
         'scatter_plot_lons': scatter_plot_lons,
         'maxTgrad_out': maxTgrad_out,
-        'abruptness_out': abruptness_out	
+        'abruptness_out': abruptness_out
     })
 
 
