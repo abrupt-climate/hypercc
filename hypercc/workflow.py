@@ -7,7 +7,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import ndimage
-from scipy.stats import kurtosis as scipykurtosis
 import noodles
 
 from hyper_canny import cp_edge_thinning, cp_double_threshold
@@ -17,7 +16,6 @@ from .units import unit, month_index
 from .filters import gaussian_filter, sobel_filter, taper_masked_area
 from .calibration import calibrate_sobel
 from .plotting import plot_signal_histogram, plot_plate_carree
-
 
 def run(workflow, db_file='hypercc-cache.db'):
     from noodles.run.threading.sqlite3 import run_parallel
@@ -148,7 +146,7 @@ def generate_signal_plot(
         config, calibration, box, sobel_data, title, filename):
     lower, upper = get_thresholds(config, calibration)
     fig = plot_signal_histogram(box, 1 / sobel_data[3], lower, upper)
-    fig.suptitle(title)
+    fig.suptitle(title, fontsize=20)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
@@ -266,7 +264,7 @@ def compute_maxTgrad(canny):
     return maxTgrad
 
 
-@noodles.schedule
+@noodles.schedule(call_by_ref=['mask'])
 @noodles.maybe
 def compute_measure15(mask, years, data, cutoff_length, chunk_max_length, chunk_min_length):
     from scipy import stats
@@ -277,8 +275,6 @@ def compute_measure15(mask, years, data, cutoff_length, chunk_max_length, chunk_
 
     shapeidx=np.shape(idx)
     nofresults=shapeidx[1]
-
-    #years = np.array([dd.year for dd in box.dates])
 
     for result in range(nofresults):
         [dim0,dim1,dim2]=indices[:,result]
@@ -339,7 +335,7 @@ def write_map(field, filename):
 
 @noodles.schedule
 @noodles.maybe
-def generate_abruptness_plot(box, abruptness, title, filename):
+def generate_standard_map_plot(box, abruptness, title, filename):
     import matplotlib
     my_cmap = matplotlib.cm.get_cmap('rainbow')
     my_cmap.set_under('w')
@@ -347,7 +343,7 @@ def generate_abruptness_plot(box, abruptness, title, filename):
         fig = plot_plate_carree(box, abruptness, cmap=my_cmap, vmin=1e-30)
     else:
         fig = plot_plate_carree(box, abruptness, cmap=my_cmap, vmin=-1e-30, vmax=1e-30)
-    fig.suptitle(title)
+    fig.suptitle(title, fontsize=20)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
@@ -365,14 +361,14 @@ def generate_timeseries_plot(config, box, data, field1, title, filename):
         fig = plt.figure()
         ax=plt.subplot(111)
         ax.plot(box.dates, ts1, 'k')
-        fig.suptitle(title)
-        ax.set_xlabel('year')
-        ax.set_ylabel('data')
+        fig.suptitle(title, fontsize=20)
+        ax.set_xlabel('year', fontsize=20)
+        ax.set_ylabel('data', fontsize=20)
         fig.savefig(str(filename), bbox_inches='tight')
         return Path(filename)
 
 
-@noodles.schedule
+@noodles.schedule(call_by_ref=['mask'])
 @noodles.maybe
 def label_regions(mask, min_size=0):
     labels, n_features = ndimage.label(
@@ -385,7 +381,7 @@ def label_regions(mask, min_size=0):
         labels=big_enough)
 
 
-@noodles.schedule
+@noodles.schedule(call_by_ref=['mask'])
 @noodles.maybe
 def generate_region_plot(box, mask, title, filename, min_size=0):
     import matplotlib
@@ -429,7 +425,9 @@ def generate_scatter_plot(mask,sb,colourdata,sizedata,colourbarlabel,gamma,lower
     my_cmap.set_under('w')
     fig = plt.figure()
     ax=plt.subplot(111)
-
+    matplotlib.rc('xtick', labelsize=16)
+    matplotlib.rc('ytick', labelsize=16)
+    
     #### ellipses showing the threshold values of hysteresis thresholding
     dp = np.linspace(-np.pi/2, np.pi/2, 100)
     dt = upper_threshold * np.sin(dp) * 10
@@ -448,11 +446,10 @@ def generate_scatter_plot(mask,sb,colourdata,sizedata,colourbarlabel,gamma,lower
     plt.scatter(sgrad[inds], tgrad[inds],s=sizdata[inds]**2,c=coldata[inds], marker = 'o', cmap =my_cmap );
     cbar=plt.colorbar()
     cbar.set_label(colourbarlabel)
-    #matplotlib.rcParams.update({'font.size': 40})
-    ax.set_xlabel('1 K / 1000 km')
-    ax.set_ylabel('1 K / decade')
-    matplotlib.rc('xtick', labelsize=20)
-    matplotlib.rc('ytick', labelsize=20)
+    matplotlib.rcParams.update({'font.size': 16})
+    ax.set_xlabel('spatial gradient in units / 1000 km')
+    ax.set_ylabel('temporal gradient in units / decade')
+
 
     #### set axis ranges
     border=0.05
@@ -463,18 +460,14 @@ def generate_scatter_plot(mask,sb,colourdata,sizedata,colourbarlabel,gamma,lower
     ax.set_xlim(Smin, Smax)
     ax.set_ylim(Tmin, Tmax)
 
-    fig.suptitle(title)
+    #fig.suptitle(title)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
 
-
-@noodles.schedule
+@noodles.schedule(call_by_ref=['mask','abruptness_3d','abruptness'])
 @noodles.maybe
-def generate_year_plot(box, mask, abruptness3d, abruptness, title, filename):
-    import matplotlib
-    my_cmap = matplotlib.cm.get_cmap('rainbow')
-    my_cmap.set_under('w')
+def compute_years_maxabrupt(box, mask, abruptness_3d, abruptness):
     idx=np.where(mask)
     indices=np.asarray(idx)
     mask_max=mask*0
@@ -482,51 +475,83 @@ def generate_year_plot(box, mask, abruptness3d, abruptness, title, filename):
     nofresults=shapeidx[1]
     for result in range(nofresults):
         [dim0,dim1,dim2]=indices[:,result]
-        if (abruptness3d[dim0, dim1, dim2] == abruptness[dim1,dim2]) and abruptness[dim1,dim2] > 0:
+        if (abruptness_3d[dim0, dim1, dim2] == abruptness[dim1,dim2]) and abruptness[dim1,dim2] > 0:
             mask_max[dim0, dim1, dim2] = 1
     years = np.array([dd.year for dd in box.dates])
-    years_maxpeak=(years[:,None,None]*mask_max).sum(axis=0)
-    maxval = np.max(years_maxpeak)
-    minval = np.min(years_maxpeak[np.nonzero(years_maxpeak)])
+    years_maxabrupt=(years[:,None,None]*mask_max).sum(axis=0)
+    return years_maxabrupt
+
+    
+@noodles.schedule(call_by_ref=['years_maxabrupt'])
+@noodles.maybe
+def generate_year_plot(box, years_maxabrupt, title, filename):
+    import matplotlib
+    my_cmap = matplotlib.cm.get_cmap('rainbow')
+    my_cmap.set_under('w')
+    maxval = np.max(years_maxabrupt)
+    minval = np.min(years_maxabrupt[np.nonzero(years_maxabrupt)])
     fig = plot_plate_carree(
-        box, years_maxpeak, cmap=my_cmap, vmin=minval, vmax=maxval)
-    fig.suptitle(title)
+        box, years_maxabrupt, cmap=my_cmap, vmin=minval, vmax=maxval)
+    fig.suptitle(title, fontsize=20)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
 
 
-@noodles.schedule
+@noodles.schedule(call_by_ref=['mask'])
 @noodles.maybe
-def generate_event_count_plot(box, mask, title, filename):
+def generate_event_count_timeseries_plot(box, mask, title, filename):
     fig = plt.figure()
     ax=plt.subplot(111)
     ax.plot(box.dates, mask.sum(axis=1).sum(axis=1))
-    #fig.suptitle(title)
-    ax.set_title(title)
-    ax.set_xlabel('year')
-    ax.set_ylabel('events')
+    ax.set_title(title, fontsize=20)
+    ax.set_xlabel('year', fontsize=20)
+    ax.set_ylabel('events', fontsize=20)
     fig.savefig(str(filename), bbox_inches='tight')
     return Path(filename)
+
+#
+#@noodles.schedule(call_by_ref=['mask'])
+#@noodles.maybe
+#def generate_event_count_plot(box, mask, title, filename):
+#    import matplotlib
+#    my_cmap = matplotlib.cm.get_cmap('rainbow')
+#    my_cmap.set_under('w')
+#    if np.max(mask) > 0:
+#        fig = plot_plate_carree(box, abruptness, cmap=my_cmap, vmin=1e-30)
+#    else:
+#        fig = plot_plate_carree(box, abruptness, cmap=my_cmap, vmin=-1e-30, vmax=1e-30)
+#    fig.suptitle(title, fontsize=20)
+#    fig.savefig(str(filename), bbox_inches='tight')
+#
+#    
+#    return Path(filename)
+
 
 
 @noodles.schedule(call_by_ref=['data_set', 'canny_edges'])
 @noodles.maybe
 def make_report(config, data_set, calibration, canny_edges):
     gamma = get_calibration_factor(config, calibration)
-    scaling_factor = gamma * unit('1 km/year')
     years = np.array([dd.year for dd in data_set.box.dates])
     mask=canny_edges['edges']
+    event_count=mask.sum(axis=0)
+    
     lower_threshold, upper_threshold = get_thresholds(config, calibration)
     years3d=years[:,None,None]*mask
     lats=data_set.box.lat
     lats3d=lats[None,:,None]*mask
     lons=data_set.box.lon
     lons3d=lons[None,None,:]*mask
+    
     maxTgrad      = compute_maxTgrad(canny_edges)
+    
     ## abruptness
     measures      = compute_measure15(mask, years, data_set.data, 2, 30, 15)
     abruptness_3d = measures['measure15_3d']
     abruptness    = measures['measure15']
+
+    years_maxabrupt = compute_years_maxabrupt(data_set.box, mask, abruptness_3d, abruptness)
+    
     output_path  = Path(config.output_folder)
     signal_plot  = generate_signal_plot(
         config, calibration, data_set.box, canny_edges['sobel'], "signal",
@@ -535,15 +560,18 @@ def make_report(config, data_set, calibration, canny_edges):
         data_set.box, canny_edges['edges'], "regions",
         output_path / "regions.png")
     year_plot    = generate_year_plot(
-        data_set.box, canny_edges['edges'], abruptness_3d, abruptness, "year of largest abruptness",
-        output_path / "years.png")
-    event_count_plot = generate_event_count_plot(
+        data_set.box, years_maxabrupt, "year of largest abruptness",
+        output_path / "years_maxabrupt.png")
+    event_count_timeseries_plot = generate_event_count_timeseries_plot(
         data_set.box, canny_edges['edges'], "event count",
+        output_path / "event_count_timeseries.png")
+    event_count_plot = generate_standard_map_plot(
+        data_set.box, event_count, "event count",
         output_path / "event_count.png")
-    abruptness_plot  = generate_abruptness_plot(
+    abruptness_plot  = generate_standard_map_plot(
         data_set.box, abruptness,
         "abruptness", output_path / "abruptness.png")
-    maxTgrad_plot    = generate_abruptness_plot(
+    maxTgrad_plot    = generate_standard_map_plot(
         data_set.box, maxTgrad,
         "max. time gradient", output_path / "maxTgrad.png")
     timeseries_plot = generate_timeseries_plot(
@@ -563,6 +591,9 @@ def make_report(config, data_set, calibration, canny_edges):
         upper_threshold,"space versus time gradients",output_path / "scatter_longitude.png")
     maxTgrad_out        = write_map(maxTgrad, output_path / "maxTgrad.txt")
     abruptness_out      = write_map(abruptness, output_path / "abruptness.txt")
+    years_maxabrupt_out = write_map(years_maxabrupt, output_path / "years_maxabrupt.txt")
+    event_count_out     = write_map(event_count, output_path / "event_count.txt")
+    
     return noodles.lift({
         'calibration': calibration,
         'statistics': {
@@ -573,6 +604,7 @@ def make_report(config, data_set, calibration, canny_edges):
         'region_plot': region_plot,
         'year_plot': year_plot,
         'event_count_plot': event_count_plot,
+        'event_count_timeseries_plot': event_count_timeseries_plot,
         'maxTgrad_plot': maxTgrad_plot,
         'abruptness_plot': abruptness_plot,
         'timeseries_plot': timeseries_plot,
@@ -581,7 +613,9 @@ def make_report(config, data_set, calibration, canny_edges):
         'scatter_plot_lats': scatter_plot_lats,
         'scatter_plot_lons': scatter_plot_lons,
         'maxTgrad_out': maxTgrad_out,
-        'abruptness_out': abruptness_out
+        'abruptness_out': abruptness_out,
+        'years_maxabrupt_out': years_maxabrupt_out,
+        'event_count_out': event_count_out
     })
 
 
