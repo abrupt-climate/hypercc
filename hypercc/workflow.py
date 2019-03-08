@@ -37,8 +37,7 @@ def run_single(workflow, db_file='hypercc-cache.db'):
     from .serialisers import registry
     return run_single(
         workflow, registry=registry,
-        db_file=db_file, always_cache=False,
-        echo_log=True)
+        db_file=db_file, always_cache=False)
 
 
 def open_data_files(config):
