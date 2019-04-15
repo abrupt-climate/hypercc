@@ -2,68 +2,58 @@
 
 ## purpose: scan CMIP5 archive automatically for abrupt shifts
 
-### all models
-modellist="ACCESS1-0 ACCESS1-3 bcc-csm1-1 bcc-csm1-1-m BNU-ESM CanAM4 CanCM4 CanESM2 CCSM4 CESM1-BGC CESM1-CAM5 CESM1-CAM5-1-FV2 CESM1-FASTCHEM CESM1-WACCM CFSv2-2011 CMCC-CESM CMCC-CM CMCC-CMS CNRM-CM5 CNRM-CM5-2 CSIRO-Mk3-6-0 CSIRO-Mk3L-1-2 EC-EARTH FGOALS-g2 FGOALS-gl FGOALS-s2 FIO-ESM GEOS-5 GFDL CM2p1 GFDL-CM3 GFDL-ESM2G GFDL-ESM2M GFDL-HIRAM-C180 GFDL-HIRAM-C360 GISS-E2-H GISS-E2-H-CC GISS-E2-R GISS-E2-R-CC HadCM3 HadGEM2-A HadGEM2-AO HadGEM2-CC HadGEM2-ES inmcm4 IPSL-CM5A-LR IPSL-CM5A-MR IPSL-CM5B-LR MIROC4h MIROC5 MIROC-ESM MIROC-ESM-CHEM MPI-ESM-LR MPI-ESM-MR MPI-ESM-P MRI-AGCM3-2H MRI AGCM3-2S MRI-CGCM3 MRI-ESM1 NICAM-09 NorESM1-M NorESM1-ME"
+
+## to save log, run with
+# nohup ./scan_CMIP5.ksh >> log_scan_CMIP5.txt & tail -f log_scan_CMIP5.txt
+
+
+###### all models for which there is at least one variable for piC and rcp85
+modellist="BNU-ESM CanESM2 CCSM4 CESM1-BGC CESM1-CAM5 CESM1-CAM5-1-FV2 CMCC-CESM CMCC-CMS CNRM-CM5 CSIRO-Mk3-6-0 EC-EARTH FGOALS-g2 FIO-ESM GFDL-CM3 GFDL-ESM2G GFDL-ESM2M GISS-E2-H GISS-E2-H-CC GISS-E2-R GISS-E2-R-CC HadGEM2-CC HadGEM2-ES inmcm4 IPSL-CM5A-LR IPSL-CM5A-MR IPSL-CM5B-LR MIROC5 MIROC-ESM MIROC-ESM-CHEM MPI-ESM-LR MPI-ESM-MR MRI-CGCM3 NorESM1-M NorESM1-ME     bcc-csm1-1  CMCC-CM ACCESS1-0 ACCESS1-3  bcc-csm1-1-m"
+
+
+####### variables
+#realm=atmosphere
+#varlist="rlus huss prw ps rlut rsut rsds rlds clt hurs hfss hfls rsus pr prc tas tasmin tasmax sfcWind ci clivi clwvi sci rldscs rlutcs rsdscs rsuscs tauu tauv ts uas vas     prsn cct"
+#monlist="1 2 3 4 5 6 7 8 9 10 11 12"
 
 
 
-## variables
 
-realm=atmosphere
-
-## fast atm and land vars
-varlist="  snw   lai  gpp npp rlus huss  prsn prw ps rlut rsut      snc snw   mrsos mrso rh ra fFire fVegLitter fVegSoil tran   snd mrro mrros nbp   rsds rlds  clt hurs hfss hfls rsus rlus pr prc tas tasmin tasmax sfcWind wap500 ci cltc clc cls clivi clwvi sci  rhs cct rldscs rlutcs rsdscs rsuscs    rsutcs tauu tauv ts uas vas      snm    rGrowth rMaint  tpf alb cLitter"
-monlist="13 1 2 3 4 5 6 7 8 9 10 11 12"
+## fast land vars (or land ice)
+#realm=land
+#varlist="gpp npp nbp snc snw snm mrsos mrso mrro mrros rh ra tran fFire fVegLitter fVegSoil rGrowth rMaint lai"
+#monlist="2 3 4 5 6 7 8 9 10 11 12"
 
 
-## slow land vars
-#varlist="cSoil cVeg baresoilFrac grassFrac treeFrac shrubFrac vegFrac treeFracPrimDec treeFracPrimEver treeFracPrimSecDec treeFracPrimSecEver burntArea c3PftFrac c4PftFrac"
+### slow land vars
+#realm=land
+#varlist="cSoil cVeg baresoilFrac grassFrac treeFrac"
 #monlist="13"
 
 
 
+
+## all ocean (and ocean ice)
 #realm=ocean
-
-## all ocean
-#varlist="intpp tos sit sic sos sim transix transiy         omldamax omlmax umo vmo mlotst pbo zos             chl dpco2 epc100 fgco2 intdic intpp o2min frc ph talk zooc zoocmisc bfe bsi calc co3 co3satcalc detoc dfe dissic dissoc dms pdo2 epcalc100 epfe100 epsi100 fddtalk fddtalk fddtdic fddtdife fddtdin fddtdop fddtdisi fgdms fgo2 dpo2 frc frfe frn fsfe intpbfe intpbsi intpcalc intpn2 no3 o2 phyc phyfe phyn phyp po4 pon pop sispco2 zo2min zsatcalc"
-monlist="13 1 2 3 4 5 6 7 8 9 10 11 12"
-
-calc_new=1
-write_logfile=1
-sigmaS=100
-sigmaTlist="10"
-threshcaselist="2"
+#varlist="intpp tos sit sic sos snd  omlmax mlotst pbo zos chl dpco2 epc100 fgco2 intdic frc ph talk zooc zoocmisc"
+#monlist="1 2 3 4 5 6 7 8 9 10 11 12"
 
 
-
-### tests for analysis
-
-## a few selected models and months
-#modellist="ACCESS1-0 MPI-ESM-LR MIROC-ESM GFDL-CM3"
-#varlist="tas" # mrso snw frc fFire"
-#monlist="1 4 7 10"
-#threshcaselist="2"
-#calc_new=1
-#write_logfile=1
-#sigmaTlist="10"
-
-### one specific case: MPI04
-modellist="MPI-ESM-LR"
-varlist="tas"
-monlist="4"
-threshcaselist="2"
-calc_new=1
-write_logfile=1
-
-### one specific case: ACCESS07
-modellist="ACCESS1-0"
-varlist="tas"
-monlist="7"
-threshcaselist="2"
-calc_new=1
-write_logfile=1
 
 realm=atmosphere
+modellist="MPI-ESM-LR"
+monlist="4"
+varlist="tas"
+
+
+
+
+######## settings
+calc_new=1
+write_logfile=1
+sigmaSlist="100"
+sigmaTlist="10"
+threshcaselist="2"
 
 
 
@@ -71,26 +61,47 @@ realm=atmosphere
 rea=r1i1p1
 scen=rcp85
 
-
-
 outpath=~/Sebastian/datamining/edges/CMIP5scan
 hyperccpath=~/Sebastian/datamining/edges/Abrupt/hypercc/bin
-
-scriptpath=/home/sebastian/Abrupt/hypercc/scripts
-
+scriptpath=`pwd`   ## this folder
 
 
+## options: single or parallel; month selection; grid selection
+option_single="--single"
 
-rm -rf /home/bathiany/data_mounted_temp
-ln -s /media/bathiany/'Seagate Expansion Drive' /home/bathiany/data_mounted_temp
+
+if [[ ! -d /home/bathiany/data_mounted_temp ]]; then
+  ln -s /media/bathiany/'Seagate Expansion Drive' /home/bathiany/data_mounted_temp
+fi
+
+
+#### clean up
+
+
+figure_list="signal years_maxabrupt event_count event_count_timeseries regions maxTgrad timeseries abruptness scatter_abruptness scatter_year scatter_longitude scatter_latitude"
+
+outdata_maps_list="event_count maxTgrad years_maxabrupt abruptness"
 
 
 
 for var in ${varlist}; do
 for model in ${modellist}; do
-for mon in ${monlist}; do
+
+### clear cache - otherwise it fills the whole hard drive...
+rm -f hypercc-cache.hdf5 cache.lock hypercc-cache.db
+
 for sigmaT in ${sigmaTlist}; do
+for sigmaS in ${sigmaSlist}; do
 for threshcase in ${threshcaselist}; do
+for mon in ${monlist}; do
+
+  if [[ ${mon} == 13 ]]; then
+    option_month="--annual"
+  else
+    option_month="--month ${mon}"
+  fi
+
+  basename=${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}
 
   
   ##  threshold values for hysteresis thresholding
@@ -108,216 +119,335 @@ for threshcase in ${threshcaselist}; do
    thresh2=pi-control-max*3/4
   fi
   
+  echo ""
+  echo "${var} ${model} ${scen} mon ${mon}, sigmaT: ${sigmaT}, sigmaS: ${sigmaS}, threshcase: ${threshcase}"
+  date
+
+  logfile=${outpath}/logs/${var}/${basename}_log.txt
   
-  echo "${var} ${model} ${scen} mon ${mon}, sigmaT: ${sigmaT}, threshcase: ${threshcase}"
-  
-  logfile=${outpath}/logs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_log.txt
-  
+
+  ### remove old logfiles from previous erroneous runs:
+  ### Will only be recalculated if checkfile=${logfile} below!!
+  if [[ -f ${logfile} && ${calc_new} == 0 ]]; then
+    loglines=`cat ${logfile} |wc -l`
+    if [[ ${loglines} -lt 2 ]]; then
+      echo "Error: logfile is empty. Removing logfile..."
+      rm -f ${logfile}
+    fi
+  fi
+
+
   checkfile=${logfile}
-  #checkfile=${outpath}/figs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}.png
-  
+  ##checkfile=${outpath}/figs_combi/${var}/${basename}_maps.png
+  ##checkfile=${outpath}/outdata/${var}/${basename}_abruptness.nc
 
   if [[ ! -f ${checkfile} || ${calc_new} == 1 ]]; then
     rm -f ${logfile}
     
-    
-    ## clear figures (now because needs to have enough time for new time stamp on files)
-    mkdir -p ${outpath}/combifigs/${var}
-    mkdir -p ${outpath}/singlefigs/${var}
-    
-    rm -f ${outpath}/figs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}.png
-    for type in signal years event_count regions peakiness maxTgrad kurtosis timeseries; do
-      rm -f ${outpath}/singlefigs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_${type}.png
+        
+    ####################
+    #########   preparation: files and paths
+    ####################
+    ## remove local figures to avoid that old ones are used and wrongly labeled:
+    for figure in ${figure_list}; do 
+      rm -f ${figure}.png
     done
     
-    
-    
-    ### data paths and files
-    
-    #rcppath=/home/bathiany/data_mounted_temp/modeldata/${model}/${scen}/${var}
-    #piCpath=/home/bathiany/data_mounted_temp/modeldata/${model}/piControl/${var}
-    
-    #### testing:
-    rcppath=/home/bathiany/Sebastian/datamining/edges/testdata
-    piCpath=/home/bathiany/Sebastian/datamining/edges/testdata
-    
-    
+    ## remove local outdata files
+    for data in ${outdata_maps_list}; do 
+      rm -f ${data}.nc
+    done
+    rm -f dummy.nc
+
+    ## prepare folders
+    mkdir -p ${outpath}/figs_combi/${var}
+    mkdir -p ${outpath}/figs_single/${var}
+    mkdir -p ${outpath}/logs/${var}
+    mkdir -p ${outpath}/outdata/${var}
+
+
+    ## clear figures in destination folders 
+    ## (already at this point because needs to have enough time for new time stamp on files)
+    rm -f ${outpath}/figs_combi/${var}/${basename}_*.png
+    rm -f ${outpath}/figs_single/${var}/${basename}_*.png
+
+    ## clear outdata in folders
+    rm -f ${outpath}/outdata/${var}/${basename}_*.*
+
+
+    #################################### preparation: input and output data  ###################
+    ####################################
+
+    ### set paths for data paths    
+    rcppath=/home/bathiany/data_mounted_temp/modeldata/${model}/${scen}/${var}
+    piCpath=/home/bathiany/data_mounted_temp/modeldata/${model}/piControl/${var}
+
+
     count_files_rcp=`ls ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc 2>/dev/null | wc -w`
     count_files_piC=`ls ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.nc 2>/dev/null | wc -w`
-    
 
+     
     if [[ ${count_files_rcp} -gt 0 && ${count_files_piC} -gt 0 ]]; then
-  
+
       if [[ ${write_logfile} == 1 ]]; then
-        mkdir -p ${outpath}/logs/${var}
-  
         echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} years ${sigmaS} km, thresholds: ${thresh1} ${thresh2}" > ${logfile}
         echo ""
       fi
+      
+ 
+      ########### remapping grids when needed and applying land-sea mask
+      ##########################################
+
+
+      ########################### 
+      ######### 1. regrid files with curvilinear grids
+      ###################################
+      
+      extension=""
+      option_extension=""
+
+
+      if [[ ( ( ${realm} == "ocean" ) && ( ! ${model} == GISS-E2-H-CC ) && ( ! ${model} == GISS-E2-R-CC ) ) ||  ${model} == FGOALS-g2 ]]; then
+
+        # FGOALS only has unexpected grid (also for atmosphere), CESM1.--- has only ocean output
+        # here, regrid both on a lonlat grid with similar size than native grids:
+        if [[ ${model} == "FGOALS-g2" || ${model} == "CESM1-CAM5-1-FV2" ]]; then
+           gridres=80
+          extension="_remapbilt${gridres}"
+          option_extension="--extension nc${extension}"
+          grid=t${gridres}grid
+
+        else   # remap on atmos/land grid
+          grid=atmos
+
+          extension="_remap2atmosgrid"
+          option_extension="--extension nc${extension}"
   
-      echo ""
-      echo "${var} ${model} ${scen} mon ${mon}, scales: ${sigmaT} year ${sigmaS} km, thresholds: ${thresh1} ${thresh2}"
-  
-      ## ocean (regridded)
-      if [[ ${realm} == ocean ]]; then
-    
-        extension="remapbilt100.nc"
-    
-        ## if no regridded files are there, create them
-    
-        cd ${rcppath}
-        count_files_rcp_regridded=`ls ${var}_*mon_${model}_${scen}_${rea}_??????-??????.${extension} 2>/dev/null | wc -w `
-        if [[ ${count_files_rcp_regridded} -eq 0 ]]; then
-          echo "regridding..."
-          files_rcp=`ls ${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc 2>/dev/null`
-          for file in ${files_rcp}; do
-            basename=${file%??}
-            if [[ ! -f ${basename}remapbilt100.nc ]]; then
-              cdo -s remapbil,t100grid ${file} ${basename}remapbilt100.nc
-            fi
-          done
+          grid=/home/bathiany/Sebastian/CMIP5/landseamask/atmosgrid_${model}.nc
+         
+          if [[ ! -f ${grid} ]]; then
+            echo "error: no atmos grid found to project on. abort."
+            exit
+          fi 
         fi
     
         cd ${piCpath}
-        count_files_piC_regridded=`ls ${var}_*mon_${model}_piControl_${rea}_??????-??????.${extension} 2>/dev/null | wc -w`
-        if [[ ${count_files_piC_regridded} -eq 0 ]]; then
-          files_piC=`ls ${var}_*mon_${model}_piControl_${rea}_??????-??????.nc 2>/dev/null`
-          for file in ${files_piC}; do
-            basename=${file%??}
-            if [[ ! -f ${basename}remapbilt100.nc ]]; then
-              cdo -s remapbil,t100grid ${file} ${basename}remapbilt100.nc
-            fi
-          done
-        fi
-        cd ${scriptpath}
-    
-    
-        if [[ ${write_logfile} == 1 ]]; then
-          if [[ ${mon} == 13 ]]; then
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath}  \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --extension ${extension} --annual --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
-              --upper-threshold ${thresh1} --lower-threshold ${thresh2}  \
-              >> ${logfile}
-          else
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath}  \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --extension ${extension} --month ${mon} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
-              --upper-threshold ${thresh1} --lower-threshold ${thresh2}  \
-              >> ${logfile}
-          fi #annual
-        else
-          if [[ ${mon} == 13 ]]; then
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath}  \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --extension ${extension} --annual --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
-              --upper-threshold ${thresh1} --lower-threshold ${thresh2}
-          else
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath} \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --extension ${extension} --month ${mon} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
-              --upper-threshold ${thresh1} --lower-threshold ${thresh2}
-          fi #annual
-        fi
-    
-        ## optional:  --output-folder ${outpath}
-    
-  
-  
-  
-      ### land and atmo (not regridded)
-      elif [[ ${realm} == land || ${realm} == atmosphere ]]; then
-    
-        if [[ ${write_logfile} == 1 ]]; then
-          if [[ ${mon} == 13 ]]; then
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath} \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --annual --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km --upper-threshold ${thresh1} \
-              --lower-threshold ${thresh2} --sobel-scale 1 km/year \
-              >> ${logfile}
-          else
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath} \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --month ${mon} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km --upper-threshold ${thresh1} \
-              --lower-threshold ${thresh2} --sobel-scale 1 km/year \
-              >> ${logfile}
-          fi #annual
-    
-    
-        else # no logfile
-          if [[ ${mon} == 13 ]]; then
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath} \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --annual --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km --upper-threshold ${thresh1} \
-              --lower-threshold ${thresh2} --sobel-scale 1 km/year
-          else
-            ${hyperccpath}/hypercc --data-folder ${rcppath} --pi-control-folder ${piCpath} \
-              report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
-              --month ${mon} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km --upper-threshold ${thresh1} \
-              --lower-threshold ${thresh2} --sobel-scale 1 km/year
-          fi #annual
-    
-        fi # write logfile
-    
-      fi #realm
-  
-  
-      for type in maxTgrad abruptness; do    #event_count years 
-        if [[ -f ${type}.txt || ${calc_new} == 1 ]]; then
-          cp ${type}.txt ${outpath}/txtdata/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_${type}.txt
-## Seb: change to mv again later
-        fi
-      done
-    
-    
-    # save all single figures
-      figfiles=0
-      for type in signal years event_count regions maxTgrad timeseries abruptness scatter_abruptness scatter_year scatter_longitude scatter_latitude; do 
-        if [[ -f ${type}.png || ${calc_new} == 1 ]]; then
-          figfiles=1
-          cp ${type}.png ${outpath}/singlefigs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_${type}.png
-        fi
-      done 
-    
-      ## select figures and put in one figure
-      if [[ ${figfiles} == 1 ]]; then
-        convert \( signal.png years.png abruptness.png -append \) \
-        \( timeseries.png maxTgrad.png event_count.png  -append \) \
-        +append ${outpath}/figs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_maps_and_timeseries.png
-    
-        ## the 4 scatter plots
-        convert \( scatter_abruptness.png scatter_year.png scatter_longitude.png scatter_latitude.png -append \) \
-        +append ${outpath}/figs/${var}/${var}_${model}_${scen}_${rea}_mon${mon}_sigmaT${sigmaT}_sigmaS${sigmaS}_lowthreshcase${threshcase}_scatterplots.png
+        echo "regridding piControl files to grid: ${grid}..."
+        files_piC=`ls ${var}_*mon_${model}_piControl_${rea}_??????-??????.nc 2>/dev/null`
+        for file in ${files_piC}; do
+          if [[ ! -f ${file}${extension} ]]; then
+            cdo -s remapbil,${grid} ${file} ${file}${extension}
+          fi
+        done
 
-# Seb: enable again later    
-        # clean up
-        #rm -f signal.png years.png event_count.png regions.png maxTgrad.png timeseries.png abruptness.png 
-        #rm -f scatter_abruptness.png scatter_year.png scatter_longitude.png scatter_latitude.png
+        cd ${rcppath}        
+        echo "regridding rcp files to grid: ${grid}..."
+        files_rcp=`ls ${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc 2>/dev/null`
+        for file in ${files_rcp}; do
+          if [[ ! -f ${file}${extension} ]]; then
+            cdo -s remapbil,${grid} ${file} ${file}${extension}
+          fi
+        done
+
+
+      fi #regrid
+
+
+
+      ########################### 
+      ######### 2. apply land-sea mask
+      ###################################
+
+      lsm_path=/home/bathiany/Sebastian/CMIP5/landseamask
+
+      if [[ ${realm} == "land" ]]; then
+        lsmfile=${lsm_path}/sftlf_fx_${model}_rcp85_r0i0p0_binary.nc
+      elif [[ ${realm} == "ocean" ]]; then   # inverse mask
+        lsmfile=${lsm_path}/sftlf_fx_${model}_rcp85_r0i0p0_inverse_binary.nc
       fi
-    
+      if [[ ${model} == "FGOALS-g2" ]]; then  # this model had a mask but this was regridded like the data
+        if [[ ${realm} == "land" ]]; then
+          lsmfile=${lsm_path}/sftlf_fx_FGOALS-g2_rcp85_r0i0p0_remapbilt80_binary.nc
+        elif [[ ${realm} == "ocean" ]]; then   # inverse mask
+          lsmfile=${lsm_path}/sftlf_fx_FGOALS-g2_rcp85_r0i0p0_remapbilt80_inverse_binary.nc
+        fi
+      fi
+
+      ## check if lsm exists and if realm is not atmosphere:
+      if [[ -f ${lsmfile} && ! ${realm} == atmosphere ]]; then
+
+        ## check if masking is needed (i.e. variable not masked in file already):
+        masking=0
+        for path in ${rcppath} ${piCpath}; do
+          cd ${path}
+
+          ## check if masking is needed by investigating first file only
+          ## (Files have been checked and repaired so that this is sufficient for all models and variables)
+          ### use original files for this check, not the remapped ones because remapping ocean to atmos grid leads to misvals         
+          files=`ls ${var}_*mon_${model}_*_${rea}_??????-??????.nc 2>/dev/null`
+          for file in ${files}; do
+            cdo -s seltimestep,1 ${file} ${file}_step1
+            count=`cdo -s info ${file}_step1 | cut -c48-63`
+            misvals=`echo ${count} | cut -c12`
+            rm ${file}_step1
+            break
+          done
+
+          if [[ ${misvals} == 0 ]]; then
+            masking=1
+          fi
+        done #path
+
+        if [[ ${masking} == 1 ]]; then
+          echo "             There are no missing values - apply mask to file..."
+          for path in ${rcppath} ${piCpath}; do
+            cd ${path}
+            files=`ls ${var}_*mon_${model}_*_${rea}_??????-??????.nc${extension} 2>/dev/null`
+            for file in ${files}; do
+              cdo -s ifthen ${lsmfile} ${file} ${file}_masked
+            done # file  
+          done #path (rcp, piC)
+
+
+
+          ### add this flag to the file name hypercc looks for, and remove the intermediary files
+
+          if [[ ! ${extension} == "" ]]; then
+            rm -f ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.nc${extension}
+            rm -f ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc${extension}
+          fi
+
+          extension="${extension}_masked"
+          option_extension="--extension nc${extension}"
+
+        fi # apply mask
+      fi   # mask
+
+
+
+      cd ${scriptpath}
+
+
+      ############### provide a dummy file for writing outdata:
+      #######################################################
+      files=`ls ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc${extension} 2>/dev/null`
+      for file in ${files}; do
+        cp ${file} dummy.nc
+        break 
+      done
+
+      if [[ ! -f dummy.nc ]]; then
+        echo "Error: dummy file is missing. something went wrong."
+        exit
+      fi
+      cdo -s seltimestep,1 -setname,outdata dummy.nc dummy2.nc
+      cdo -s mulc,0 dummy2.nc dummy.nc
+      rm dummy2.nc
+      for data in ${outdata_maps_list}; do
+        cp dummy.nc ${data}.nc
+      done
+
+
+
+      ###########  run the edge detector   
+      ############################################
+      if [[ ${write_logfile} == 1 ]]; then
+          ${hyperccpath}/hypercc ${option_single} --data-folder ${rcppath} --pi-control-folder ${piCpath}  \
+            report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
+            ${option_extension} ${option_month} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
+            --upper-threshold ${thresh1} --lower-threshold ${thresh2} ${option_logfile} \
+            >> ${logfile}
+      else
+          ${hyperccpath}/hypercc ${option_single} --data-folder ${rcppath} --pi-control-folder ${piCpath} \
+            report --variable ${var} --model ${model} --scenario ${scen} --realization ${rea} \
+            ${option_extension} ${option_month} --sigma-t ${sigmaT} year --sigma-x ${sigmaS} km \
+            --upper-threshold ${thresh1} --lower-threshold ${thresh2}
+      fi
+
+
+
+
+      ############  clean up figures and outdata
+      ##################################################
+
+      ## only save figures and outdata if log is longer than the first line, and if calibration is not above threshold:
+      loglines=`cat ${logfile} |wc -l`
+      abortmessage=`cat ${logfile} | grep "* ValueError: Maximum signal below calibration limit, no need to continue." |wc -w`
+            
+      if [[ ${loglines} > 1 && ${abortmessage} == 0 ]]; then
+      
+        ## outdata files for maps and ts
+        
+        mkdir -p ${outpath}/outdata/${var}
+        for data in ${outdata_maps_list}; do
+          if [[ -f ${data}.nc ]]; then
+            cp ${data}.nc ${outpath}/outdata/${var}/${basename}_${data}.nc
+          fi
+        done
+        if [[ -f event_count_timeseries.txt ]]; then
+          cp event_count_timeseries.txt ${outpath}/outdata/${var}/${basename}_event_count_timeseries.txt
+        fi
+        
+      
+        ### save all single figures
+        figfiles=0
+        for figure in ${figure_list}; do  
+          if [[ -f ${figure}.png ]]; then
+            figfiles=1
+            cp ${figure}.png ${outpath}/figs_single/${var}/${basename}_${figure}.png
+          fi
+        done
+      
+      
+        ## select figures and put in combined figures
+        if [[ ${figfiles} == 1 ]]; then
+      
+          ## the 4 maps
+          convert \( event_count.png abruptness.png  -append \) \
+          \(  years_maxabrupt.png maxTgrad.png -append \) \
+          +append ${outpath}/figs_combi/${var}/${basename}_maps.png
+      
+          ## the 3 time series
+          convert \( signal.png timeseries.png event_count_timeseries.png -append \) \
+          +append ${outpath}/figs_combi/${var}/${basename}_timeseries.png
+      
+          ## the 4 scatter plots
+          convert \( scatter_abruptness.png scatter_year.png -append \) \
+          \( scatter_longitude.png scatter_latitude.png -append \) \
+          +append ${outpath}/figs_combi/${var}/${basename}_scatterplots.png
+      
+        fi
+      fi ## logfile countains output  
+
+
+      if [[ ${loglines} -lt 2 ]]; then
+        echo "Something did not work. logfile is empty. Removing logfile..."
+      fi
+
     else  # count files
       echo "no files found"
-      #ls ${logfile}
-      #rm -f ${logfile}
     fi
   
   
   fi # calc new
   
 
-
+done # mon
 done # threshcase
 done # sigmaT
-done # mon
+done # sigmaS
 
-## delete regridded files due to disk space constraints
-rm -f ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.${extension}
-rm -f ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.${extension}
+
+### delete regridded files due to disk space constraints
+if [[ ! ${extension} == "" ]]; then
+  rm -f ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.nc${extension}
+  rm -f ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc${extension}
+fi
 
 done # model
 done # var
 
-rm -rf /home/bathiany/data_mounted_temp
+##rm -rf /home/bathiany/data_mounted_temp
 
 exit
 

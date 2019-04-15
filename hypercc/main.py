@@ -150,6 +150,5 @@ if __name__ == "__main__":
             print("max maxTgrad:", results['statistics']['max_maxTgrad'])
             print("max abruptness:", results['statistics']['max_abruptness'])
 
-
         else:
             print(results)

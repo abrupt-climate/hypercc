@@ -29,7 +29,10 @@ def calibrate_sobel(quartile, box, data, delta_t, delta_d):
         print('nans per total size in %:', nanratio)
         print(' ')
 
-
+   
+    
+    #sbc=np.longdouble(sbc)   # higher precision to avoid overflow
+    
     if isinstance(data, np.ma.core.MaskedArray) \
             and (data.mask is not np.ma.nomask):
         var_t = (sbc[0]**2 / sbc[3]**2).compressed()
@@ -56,10 +59,12 @@ def calibrate_sobel(quartile, box, data, delta_t, delta_d):
     ft = weighted_quartiles(var_t_nonans, weights)
     fx = weighted_quartiles(var_x_nonans, weights)
 
+    fx[fx==0] = np.nan
     gamma = np.sqrt(ft / fx)
+    
+
     var_x_nonans *= gamma[quartile]
     fm = weighted_quartiles(var_x_nonans**2 + var_t_nonans**2, weights)
-
 
     return {
         'time': np.sqrt(ft),

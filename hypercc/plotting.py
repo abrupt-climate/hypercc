@@ -84,8 +84,8 @@ def plot_signal_histogram(box, signal, lower, upper, **pargs):
     ax.plot(box.dates, signal_flat.max(axis=1), '-', c='gray')
     ax.axhline(lower)
     ax.axhline(upper)
-    ax.set_xlabel('year', fontsize=20)
-    ax.set_ylabel('signal', fontsize=20)
+    ax.set_xlabel('year', fontsize=32)
+    ax.set_ylabel('signal', fontsize=32)
 
     return fig
 
