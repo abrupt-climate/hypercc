@@ -11,18 +11,14 @@
 modellist="BNU-ESM CanESM2 CCSM4 CESM1-BGC CESM1-CAM5 CESM1-CAM5-1-FV2 CMCC-CESM CMCC-CMS CNRM-CM5 CSIRO-Mk3-6-0 EC-EARTH FGOALS-g2 FIO-ESM GFDL-CM3 GFDL-ESM2G GFDL-ESM2M GISS-E2-H GISS-E2-H-CC GISS-E2-R GISS-E2-R-CC HadGEM2-CC HadGEM2-ES inmcm4 IPSL-CM5A-LR IPSL-CM5A-MR IPSL-CM5B-LR MIROC5 MIROC-ESM MIROC-ESM-CHEM MPI-ESM-LR MPI-ESM-MR MRI-CGCM3 NorESM1-M NorESM1-ME     bcc-csm1-1  CMCC-CM ACCESS1-0 ACCESS1-3  bcc-csm1-1-m"
 
 
+
 ####### variables
 #realm=atmosphere
 #varlist="rlus huss prw ps rlut rsut rsds rlds clt hurs hfss hfls rsus pr prc tas tasmin tasmax sfcWind ci clivi clwvi sci rldscs rlutcs rsdscs rsuscs tauu tauv ts uas vas     prsn cct"
-#monlist="1 2 3 4 5 6 7 8 9 10 11 12"
-
-
-
 
 ## fast land vars (or land ice)
 #realm=land
 #varlist="gpp npp nbp snc snw snm mrsos mrso mrro mrros rh ra tran fFire fVegLitter fVegSoil rGrowth rMaint lai"
-#monlist="2 3 4 5 6 7 8 9 10 11 12"
 
 
 ### slow land vars
@@ -30,16 +26,18 @@ modellist="BNU-ESM CanESM2 CCSM4 CESM1-BGC CESM1-CAM5 CESM1-CAM5-1-FV2 CMCC-CESM
 #varlist="cSoil cVeg baresoilFrac grassFrac treeFrac"
 #monlist="13"
 
-
-
-
 ## all ocean (and ocean ice)
 #realm=ocean
 #varlist="intpp tos sit sic sos snd  omlmax mlotst pbo zos chl dpco2 epc100 fgco2 intdic frc ph talk zooc zoocmisc"
+
+
+
 #monlist="1 2 3 4 5 6 7 8 9 10 11 12"
 
 
 
+
+## testcase
 realm=atmosphere
 modellist="MPI-ESM-LR"
 monlist="4"
@@ -48,8 +46,18 @@ varlist="tas"
 
 
 
+##### repair
+#varlist="cct ci clivi clt clwvi hfls hfss hurs huss prc pr prsn prw ps rldscs rlds rlus rlutcs rlut rsdscs rsds rsuscs rsus rsut sci sfcWind tasmax tasmin tas tauu tauv ts uas vas"
+#realm=atmosphere
+#modellist="GISS-E2-R"
+#monlist="1 2 3 4 5 6 7 8 9 10 11 12"
+
+
+
+
 ######## settings
 calc_new=1
+
 write_logfile=1
 sigmaSlist="100"
 sigmaTlist="10"
@@ -182,6 +190,9 @@ for mon in ${monlist}; do
     rcppath=/home/bathiany/data_mounted_temp/modeldata/${model}/${scen}/${var}
     piCpath=/home/bathiany/data_mounted_temp/modeldata/${model}/piControl/${var}
 
+ #### local folder
+ rcppath=~/Sebastian/datamining/edges/testdata
+ piCpath=${rcppath}
 
     count_files_rcp=`ls ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc 2>/dev/null | wc -w`
     count_files_piC=`ls ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.nc 2>/dev/null | wc -w`
@@ -212,14 +223,12 @@ for mon in ${monlist}; do
         # FGOALS only has unexpected grid (also for atmosphere), CESM1.--- has only ocean output
         # here, regrid both on a lonlat grid with similar size than native grids:
         if [[ ${model} == "FGOALS-g2" || ${model} == "CESM1-CAM5-1-FV2" ]]; then
-           gridres=80
+          gridres=80
           extension="_remapbilt${gridres}"
           option_extension="--extension nc${extension}"
           grid=t${gridres}grid
 
         else   # remap on atmos/land grid
-          grid=atmos
-
           extension="_remap2atmosgrid"
           option_extension="--extension nc${extension}"
   
