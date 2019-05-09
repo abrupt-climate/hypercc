@@ -190,9 +190,6 @@ for mon in ${monlist}; do
     rcppath=/home/bathiany/data_mounted_temp/modeldata/${model}/${scen}/${var}
     piCpath=/home/bathiany/data_mounted_temp/modeldata/${model}/piControl/${var}
 
- #### local folder
- rcppath=~/Sebastian/datamining/edges/testdata
- piCpath=${rcppath}
 
     count_files_rcp=`ls ${rcppath}/${var}_*mon_${model}_${scen}_${rea}_??????-??????.nc 2>/dev/null | wc -w`
     count_files_piC=`ls ${piCpath}/${var}_*mon_${model}_piControl_${rea}_??????-??????.nc 2>/dev/null | wc -w`
