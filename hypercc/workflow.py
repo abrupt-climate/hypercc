@@ -165,15 +165,18 @@ def get_thresholds(config, calibration):
     mag_quartiles = np.sqrt(
         (calibration['distance'] * gamma)**2 + calibration['time']**2)
 
-    values = {
+    ref_values = {
         'pi-control-3': mag_quartiles[3],
         'pi-control-max': mag_quartiles[4],
-        'pi-control-max*3/4': mag_quartiles[4] * 3/4,
-        'pi-control-max*1/2': mag_quartiles[4] * 1/2
     }
-
-    return values[config.lower_threshold], \
-        values[config.upper_threshold]
+    
+    ref_lower=ref_values[config.lower_threshold_ref]
+    ref_upper=ref_values[config.upper_threshold_ref]
+    
+    frac_lower=float(config.lower_threshold_frac[0])
+    frac_upper=float(config.upper_threshold_frac[0])
+    
+    return ref_lower*frac_lower, ref_upper*frac_upper
 
 
 @noodles.schedule(call_by_ref=['sobel_data', 'mask'])
@@ -229,11 +232,17 @@ def compute_canny_edges(config, data_set, calibration):
     sobel_data = sobel_filter(box, smooth_data, weight=weights)
 
     max_signal_value = 1 / sobel_data[-1].min()
+
+    gamma = get_calibration_factor(config, calibration)
+    mag_quartiles = np.sqrt(
+        (calibration['distance'] * gamma)**2 + calibration['time']**2)
+    max_signal_value_piC=mag_quartiles[4]
     lower, upper = get_thresholds(config, calibration)
-    print("maximum signal in control:", upper)
+    print("maximum signal in control:", max_signal_value_piC)
     print("maximum signal in data:", max_signal_value)
+    print("upper threshold:", upper)
     if max_signal_value < upper:
-        raise ValueError("Maximum signal below calibration limit, no need to continue.");
+        raise ValueError("Maximum signal below upper threshold, no need to continue.");
 
     pixel_sobel = sobel_filter(box, smooth_data, physical=False)
     pixel_sobel = transfer_magnitudes(pixel_sobel, sobel_data)
@@ -282,10 +291,19 @@ def compute_measure15j(mask, years, data, cutoff_length, chunk_max_length, chunk
         if mask[dim0, dim1, dim2] == 1:
             index=dim0
             if ( index-cutoff_length >= 0 ) and ( index + cutoff_length + 1 <= np.size(data,axis=0) ):
+
+                # determine last index of first chunk, and first index of second chunk
+                # this takes into account how many points aroung the abrupt shift under
+                # consideration are removed, and whether there are other abrupt shifts 
+                #in the vicinity
+
+                # first, remove cutoff length (called ctrans in paper)
                 chunk1_data=data[0:index-cutoff_length,dim1,dim2]
                 chunk2_data=data[index+cutoff_length+1:,dim1,dim2]
                 chunk1_years=years[0:index-cutoff_length]
                 chunk2_years=years[index+cutoff_length+1:]
+                chunk1_mask=mask[0:index-cutoff_length,dim1,dim2]
+                chunk2_mask=mask[index+cutoff_length+1:,dim1,dim2]
     
                 if np.size(chunk1_data) > chunk_max_length:
                     chunk1_start=np.size(chunk1_data)-chunk_max_length
@@ -298,13 +316,38 @@ def compute_measure15j(mask, years, data, cutoff_length, chunk_max_length, chunk
     
                 chunk1_data_short=chunk1_data[chunk1_start:]
                 chunk2_data_short=chunk2_data[0:chunk2_end]
+                chunk1_mask_short=chunk1_mask[chunk1_start:]
+                chunk2_mask_short=chunk2_mask[0:chunk2_end]    	    
+                chunk1_years_short=chunk1_years[chunk1_start:]-years[dim0]
+                chunk2_years_short=chunk2_years[0:chunk2_end]-years[dim0]
+
+
+                # check if there are other edges in these chunks, and cut them off
+                if np.sum(chunk1_mask_short) > 0:
+                    #print("There are other edges in chunk 1")
+                    index_edges = np.where(chunk1_mask_short)   # locate all other edges in chunk 1
+                    index_edge=np.max(index_edges)        # take the last one (closest to abrupt shift under consideration here)
+                    if index_edge + cutoff_length >= np.size(chunk1_data_short):   # also consider the cutoff length for that other edge
+                        chunk1_data_short=[]                    
+                    else:
+                        chunk1_data_short=chunk1_data_short[index_edge+cutoff_length:]
+                        chunk1_years_short=chunk1_years_short[index_edge+cutoff_length:]
+
+                if np.sum(chunk2_mask_short) > 0:
+                    #print("There are other edges in chunk 2")
+                    index_edges = np.where(chunk2_mask_short)   # locate all other edges in chunk 1
+                    index_edge=np.min(index_edges)        # take the last one (closest to abrupt shift under consideration here)
+                    if index_edge - cutoff_length < 0 :   # also consider the cutoff length for that other edge
+                        chunk2_data_short=[]                    
+                    else:
+                        chunk2_data_short=chunk2_data_short[0:index_edge-cutoff_length]
+                        chunk2_years_short=chunk2_years_short[0:index_edge-cutoff_length]
+                        
     	    
                 N1=np.size(chunk1_data_short)
                 N2=np.size(chunk2_data_short)
     
                 if not ((N1 < chunk_min_length) or (N2 < chunk_min_length)):
-                    chunk1_years_short=chunk1_years[chunk1_start:]-years[dim0]
-                    chunk2_years_short=chunk2_years[0:chunk2_end]-years[dim0]
     
                     slope_chunk1, intercept_chunk1, r_value, p_value, std_err = stats.linregress(chunk1_years_short, chunk1_data_short)
                     chunk1_regline=intercept_chunk1 + slope_chunk1*chunk1_years_short
@@ -336,10 +379,16 @@ def compute_measure15j(mask, years, data, cutoff_length, chunk_max_length, chunk
 
 @noodles.schedule
 @noodles.maybe
-def write_netcdf(field, filename):
+def write_netcdf_2d(field, filename):
     import netCDF4
     ncfile = netCDF4.Dataset(filename, "a", format="NETCDF4")
     ncfile.variables['outdata'][0,:,:]=field
+    ncfile.close()
+
+def write_netcdf_3d(field, filename):
+    import netCDF4
+    ncfile = netCDF4.Dataset(filename, "a", format="NETCDF4")
+    ncfile.variables['outdata'][:,:,:]=field
     ncfile.close()
 
 
@@ -602,7 +651,6 @@ def make_report(config, data_set, calibration, canny_edges):
         config, data_set.box, data_set.data, abruptness, abruptness_3d, "data at grid cell with largest abruptness",
         output_path / "timeseries.png")
 
-    #try:
     year_plot    = generate_year_plot(
         data_set.box, years_maxabrupt, "year of largest abruptness",
         output_path / "years_maxabrupt.png")    
@@ -618,18 +666,16 @@ def make_report(config, data_set, calibration, canny_edges):
     scatter_plot_lons=generate_scatter_plot(
         mask,canny_edges['sobel'],lons3d,abruptness_3d,"longitude",gamma,lower_threshold,
         upper_threshold,"space versus time gradients",output_path / "scatter_longitude.png")
-    #except ValueError:
-    #    pass
 
-
-    maxTgrad_out             = write_netcdf(maxTgrad, output_path / "maxTgrad.nc")
+    maxTgrad_out             = write_netcdf_2d(maxTgrad, output_path / "maxTgrad.nc")
     
-    abruptness_out      = write_netcdf(abruptness, output_path / "abruptness.nc")
+    abruptness_out      = write_netcdf_2d(abruptness, output_path / "abruptness.nc")
    
-    years_maxabrupt_out = write_netcdf(years_maxabrupt, output_path / "years_maxabrupt.nc")
-    event_count_out          = write_netcdf(event_count, output_path / "event_count.nc")
+    years_maxabrupt_out = write_netcdf_2d(years_maxabrupt, output_path / "years_maxabrupt.nc")
+    event_count_out          = write_netcdf_2d(event_count, output_path / "event_count.nc")
     event_count_timeseries_out = write_ts(event_count_timeseries, output_path / "event_count_timeseries.txt")
 
+    edge_mask_out      = write_netcdf_3d(mask, output_path / "edge_mask_detected.nc")
     
     return noodles.lift({
         'calibration': calibration,
@@ -657,7 +703,8 @@ def make_report(config, data_set, calibration, canny_edges):
         'years_maxabrupt_out': years_maxabrupt_out,
 
         'event_count_out': event_count_out,
-        'event_count_timeseries_out': event_count_timeseries_out
+        'event_count_timeseries_out': event_count_timeseries_out,
+        'edge_mask_out': edge_mask_out
     })
 
 

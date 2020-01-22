@@ -94,14 +94,22 @@ def make_argument_parser():
         choices=['min', '1st', 'median', '3rd', 'max'],
         default='3rd', dest='calibration_quartile'),
     report_parser.add_argument(
-        "--upper-threshold", help="method for estimating upper threshold "
+        "--upper-threshold-ref", help="reference for upper threshold "
         "(default: %(default)s)", choices=['pi-control-max'],
-        default='pi-control-max', dest='upper_threshold')
+        default='pi-control-max', dest='upper_threshold_ref')
     report_parser.add_argument(
-        "--lower-threshold", help="method for estimating lower threshold "
+        "--lower-threshold-ref", help="reference for lower threshold "
         "(default: %(default)s)", choices=[
-            'pi-control-3', 'pi-control-max*3/4', 'pi-control-max*1/2'],
-        default='pi-control-3', dest='lower_threshold')
+            'pi-control-3', 'pi-control-max'],
+        default='pi-control-3', dest='lower_threshold_ref')
+    report_parser.add_argument(
+        "--upper-threshold-frac", help="sets value of upper threshold relative to reference"
+        "(default: 1)",
+        nargs=1, default=['1'], dest='upper_threshold_frac')
+    report_parser.add_argument(
+        "--lower-threshold-frac", help="sets value of lower threshold relative to reference"
+        "(default: 1)",
+        nargs=1, default=['1'], dest='lower_threshold_frac')
     report_parser.add_argument(
         "--sobel-scale", help="scaling of time/space in magnitude of Sobel"
         " operator, should have dimensionality of velocity. (default: "
